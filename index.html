@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phil's Tic Tac Toe</title>
+<style>
+  :root {
+    --bg1: #fdf3e7;
+    --bg2: #ffe6c7;
+    --board: #ffffff;
+    --line: #e0b483;
+    --accent: #b5651d;
+    --shadow: rgba(140, 90, 30, 0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at top, var(--bg2), var(--bg1));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 24px 16px 48px;
+    color: #5a3a16;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    margin: 8px 0 4px;
+    text-align: center;
+    color: var(--accent);
+    text-shadow: 2px 2px 0 #fff, 4px 4px 0 var(--shadow);
+  }
+
+  .subtitle {
+    margin: 0 0 18px;
+    font-size: 1.05rem;
+    opacity: 0.8;
+  }
+
+  .status {
+    font-size: 1.4rem;
+    font-weight: bold;
+    min-height: 2.2rem;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+  .status svg { width: 36px; height: 36px; }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    background: var(--line);
+    padding: 10px;
+    border-radius: 18px;
+    box-shadow: 0 10px 30px var(--shadow);
+    width: min(92vw, 420px);
+    aspect-ratio: 1 / 1;
+  }
+
+  .cell {
+    background: var(--board);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8%;
+    transition: transform 0.12s ease, background 0.2s ease;
+  }
+  .cell:hover:not(.filled) { background: #fff7ec; transform: scale(1.04); }
+  .cell.filled { cursor: default; }
+  .cell svg { width: 100%; height: 100%; animation: pop 0.25s ease; }
+  .cell.win { background: #fff2c2; animation: glow 0.9s ease infinite alternate; }
+
+  @keyframes pop { 0% { transform: scale(0.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes glow {
+    from { box-shadow: inset 0 0 0 0 #ffcf5c; }
+    to   { box-shadow: inset 0 0 0 5px #ffcf5c; }
+  }
+
+  .controls {
+    margin-top: 22px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button.btn {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    padding: 12px 22px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #8a4d16;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  button.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #8a4d16; }
+  button.btn.secondary { background: #d68a4a; box-shadow: 0 4px 0 #a9662f; }
+
+  .scoreboard {
+    display: flex;
+    gap: 28px;
+    margin-top: 24px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 14px 26px;
+    box-shadow: 0 6px 18px var(--shadow);
+  }
+  .score {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-weight: bold;
+  }
+  .score svg { width: 44px; height: 44px; }
+  .score .num { font-size: 1.6rem; color: var(--accent); }
+</style>
+</head>
+<body>
+  <h1>Phil's Tic Tac Toe</h1>
+  <p class="subtitle">🐶 You (Labrador) vs the Computer Cat 🐱 — tap a square to play!</p>
+
+  <div class="status" id="status"></div>
+
+  <div class="board" id="board"></div>
+
+  <div class="controls">
+    <button class="btn" id="restart">New Round</button>
+    <button class="btn secondary" id="resetScores">Reset Scores</button>
+  </div>
+
+  <div class="scoreboard">
+    <div class="score">
+      <span id="dogIcon"></span>
+      <span class="num" id="dogScore">0</span>
+    </div>
+    <div class="score">
+      <span style="font-size:1.6rem; align-self:center;">🤝</span>
+      <span class="num" id="drawScore">0</span>
+    </div>
+    <div class="score">
+      <span id="catIcon"></span>
+      <span class="num" id="catScore">0</span>
+    </div>
+  </div>
+
+<script>
+  // ---- Cartoon SVG faces ----------------------------------------------------
+  const dogSVG = `
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Smiling Labrador">
+    <!-- ears -->
+    <ellipse cx="22" cy="48" rx="13" ry="26" fill="#b07a3c"/>
+    <ellipse cx="78" cy="48" rx="13" ry="26" fill="#b07a3c"/>
+    <!-- head -->
+    <circle cx="50" cy="48" r="32" fill="#e0a94e"/>
+    <!-- muzzle -->
+    <ellipse cx="50" cy="62" rx="20" ry="16" fill="#f4d39a"/>
+    <!-- eyes -->
+    <circle cx="38" cy="42" r="5" fill="#3a2a12"/>
+    <circle cx="62" cy="42" r="5" fill="#3a2a12"/>
+    <circle cx="39.5" cy="40.5" r="1.7" fill="#fff"/>
+    <circle cx="63.5" cy="40.5" r="1.7" fill="#fff"/>
+    <!-- nose -->
+    <ellipse cx="50" cy="56" rx="6" ry="4.5" fill="#3a2a12"/>
+    <!-- smiling mouth + tongue -->
+    <path d="M50 60 Q50 70 40 70 Q34 70 34 64" fill="none" stroke="#3a2a12" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M50 60 Q50 70 60 70 Q66 70 66 64" fill="none" stroke="#3a2a12" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M46 68 Q50 80 54 68 Z" fill="#ff8aa0"/>
+  </svg>`;
+
+  const catSVG = `
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Smiling Cat">
+    <!-- ears -->
+    <path d="M22 22 L20 50 L42 38 Z" fill="#8a8f98"/>
+    <path d="M78 22 L80 50 L58 38 Z" fill="#8a8f98"/>
+    <path d="M26 28 L25 44 L37 37 Z" fill="#ffb6c1"/>
+    <path d="M74 28 L75 44 L63 37 Z" fill="#ffb6c1"/>
+    <!-- head -->
+    <circle cx="50" cy="52" r="32" fill="#a3a8b2"/>
+    <!-- eyes -->
+    <ellipse cx="38" cy="48" rx="5" ry="6" fill="#3a5a2a"/>
+    <ellipse cx="62" cy="48" rx="5" ry="6" fill="#3a5a2a"/>
+    <ellipse cx="38" cy="48" rx="1.8" ry="4" fill="#1a1a1a"/>
+    <ellipse cx="62" cy="48" rx="1.8" ry="4" fill="#1a1a1a"/>
+    <circle cx="39.5" cy="46" r="1.3" fill="#fff"/>
+    <circle cx="63.5" cy="46" r="1.3" fill="#fff"/>
+    <!-- nose -->
+    <path d="M47 58 L53 58 L50 62 Z" fill="#ff8aa0"/>
+    <!-- smiling mouth -->
+    <path d="M50 62 Q44 68 38 63" fill="none" stroke="#3a2a12" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M50 62 Q56 68 62 63" fill="none" stroke="#3a2a12" stroke-width="2.2" stroke-linecap="round"/>
+    <!-- whiskers -->
+    <g stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round">
+      <line x1="30" y1="56" x2="14" y2="53"/>
+      <line x1="30" y1="60" x2="14" y2="61"/>
+      <line x1="70" y1="56" x2="86" y2="53"/>
+      <line x1="70" y1="60" x2="86" y2="61"/>
+    </g>
+  </svg>`;
+
+  // ---- Sounds (synthesized with Web Audio, no files needed) -----------------
+  let audioCtx = null;
+  function getCtx() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  // A "woof": short, low, pitch dropping bark with a bit of noise.
+  function woof(at = 0) {
+    const ctx = getCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime + at;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(280, t);
+    osc.frequency.exponentialRampToValueAtTime(90, t + 0.18);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.25);
+
+    // noise burst for "ruff" texture
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource();
+    const nGain = ctx.createGain();
+    const nFilter = ctx.createBiquadFilter();
+    nFilter.type = 'lowpass';
+    nFilter.frequency.value = 700;
+    noise.buffer = buf;
+    nGain.gain.setValueAtTime(0.25, t);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    noise.connect(nFilter).connect(nGain).connect(ctx.destination);
+    noise.start(t);
+  }
+
+  // A "meow": rising-then-falling whiny tone with vibrato.
+  function meow(at = 0) {
+    const ctx = getCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime + at;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.linearRampToValueAtTime(760, t + 0.12);
+    osc.frequency.linearRampToValueAtTime(430, t + 0.38);
+
+    // vibrato
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 18;
+    lfoGain.gain.value = 30;
+    lfo.connect(lfoGain).connect(osc.frequency);
+
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.05);
+    gain.gain.setValueAtTime(0.4, t + 0.28);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    lfo.start(t);
+    osc.stop(t + 0.45);
+    lfo.stop(t + 0.45);
+  }
+
+  function playSound(player) {
+    if (player === 'dog') woof(); else meow();
+  }
+
+  function celebrate(player) {
+    const fn = player === 'dog' ? woof : meow;
+    fn(0.0); fn(0.32); fn(0.64); // three barks / meows
+  }
+
+  // ---- Game state -----------------------------------------------------------
+  const PLAYERS = { dog: dogSVG, cat: catSVG };
+  const HUMAN = 'dog';      // you are the Labrador
+  const COMPUTER = 'cat';   // the computer is the cat
+  const WINS = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  let cells = Array(9).fill(null);
+  let current = 'dog';
+  let over = false;
+  let busy = false;         // blocks input while the computer is thinking
+  const scores = { dog: 0, cat: 0, draw: 0 };
+
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+
+  document.getElementById('dogIcon').innerHTML = dogSVG;
+  document.getElementById('catIcon').innerHTML = catSVG;
+
+  function nameOf(p) { return p === 'dog' ? "Labrador" : "Cat"; }
+  function setStatus(html) { statusEl.innerHTML = html; }
+
+  function turnStatus() {
+    const who = current === HUMAN ? "Your turn" : "Computer is thinking…";
+    setStatus(`${PLAYERS[current]} <span>${who}</span>`);
+  }
+
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    cells.forEach((_, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'cell';
+      btn.dataset.index = i;
+      btn.addEventListener('click', () => onHumanClick(i));
+      boardEl.appendChild(btn);
+    });
+  }
+
+  function onHumanClick(i) {
+    if (over || busy || current !== HUMAN || cells[i]) return;
+    place(i);
+  }
+
+  // Place the current player's mark, play its sound, and advance the game.
+  function place(i) {
+    cells[i] = current;
+    const cell = boardEl.children[i];
+    cell.innerHTML = PLAYERS[current];
+    cell.classList.add('filled');
+    playSound(current);
+
+    const winLine = getWin(current);
+    if (winLine) {
+      over = true;
+      winLine.forEach(idx => boardEl.children[idx].classList.add('win'));
+      scores[current]++;
+      updateScores();
+      setStatus(`${PLAYERS[current]} <span>${nameOf(current)} wins! 🎉</span>`);
+      celebrate(current);
+      return;
+    }
+
+    if (cells.every(Boolean)) {
+      over = true;
+      scores.draw++;
+      updateScores();
+      setStatus(`<span>It's a draw! 🤝</span>`);
+      return;
+    }
+
+    current = current === 'dog' ? 'cat' : 'dog';
+    turnStatus();
+    maybeComputerMove();
+  }
+
+  function maybeComputerMove() {
+    if (over || current !== COMPUTER) return;
+    busy = true;
+    setTimeout(() => {
+      place(chooseComputerMove());
+      busy = false;
+    }, 550);
+  }
+
+  // Strategy: win > block > center > corner > side.
+  function chooseComputerMove() {
+    const empty = cells.map((c, i) => c ? null : i).filter(i => i !== null);
+
+    const findWinning = p => {
+      for (const i of empty) {
+        cells[i] = p;
+        const won = getWin(p);
+        cells[i] = null;
+        if (won) return i;
+      }
+      return null;
+    };
+
+    let move = findWinning(COMPUTER);          // win if possible
+    if (move === null) move = findWinning(HUMAN); // else block
+    if (move === null && cells[4] === null) move = 4; // center
+    if (move === null) {
+      const corners = [0, 2, 6, 8].filter(i => cells[i] === null);
+      if (corners.length) move = corners[Math.floor(Math.random() * corners.length)];
+    }
+    if (move === null) move = empty[Math.floor(Math.random() * empty.length)];
+    return move;
+  }
+
+  function getWin(p) {
+    return WINS.find(line => line.every(idx => cells[idx] === p)) || null;
+  }
+
+  function updateScores() {
+    document.getElementById('dogScore').textContent = scores.dog;
+    document.getElementById('catScore').textContent = scores.cat;
+    document.getElementById('drawScore').textContent = scores.draw;
+  }
+
+  function newRound() {
+    cells = Array(9).fill(null);
+    over = false;
+    busy = false;
+    current = Math.random() < 0.5 ? HUMAN : COMPUTER; // random who starts
+    buildBoard();
+    turnStatus();
+    maybeComputerMove();
+  }
+
+  document.getElementById('restart').addEventListener('click', () => { getCtx(); newRound(); });
+  document.getElementById('resetScores').addEventListener('click', () => {
+    scores.dog = scores.cat = scores.draw = 0;
+    updateScores();
+    newRound();
+  });
+
+  // ---- Start ----------------------------------------------------------------
+  newRound();
+</script>
+</body>
+</html>
