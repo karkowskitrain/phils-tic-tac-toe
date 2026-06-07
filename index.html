@@ -6,12 +6,12 @@
 <title>Phil's Tic Tac Toe</title>
 <style>
   :root {
-    --bg1: #fdf3e7;
-    --bg2: #ffe6c7;
+    --bg1: #eaf6ff;
+    --bg2: #c7e6fb;
     --board: #ffffff;
-    --line: #e0b483;
-    --accent: #b5651d;
-    --shadow: rgba(140, 90, 30, 0.25);
+    --line: #8fc4ec;
+    --accent: #2f80b5;
+    --shadow: rgba(40, 100, 150, 0.25);
   }
 
   * { box-sizing: border-box; }
@@ -78,7 +78,7 @@
     padding: 8%;
     transition: transform 0.12s ease, background 0.2s ease;
   }
-  .cell:hover:not(.filled) { background: #fff7ec; transform: scale(1.04); }
+  .cell:hover:not(.filled) { background: #eef7ff; transform: scale(1.04); }
   .cell.filled { cursor: default; }
   .cell svg { width: 100%; height: 100%; animation: pop 0.25s ease; }
   .cell.win { background: #fff2c2; animation: glow 0.9s ease infinite alternate; }
@@ -107,11 +107,11 @@
     border-radius: 999px;
     padding: 12px 22px;
     cursor: pointer;
-    box-shadow: 0 4px 0 #8a4d16;
+    box-shadow: 0 4px 0 #1d5d87;
     transition: transform 0.1s ease, box-shadow 0.1s ease;
   }
-  button.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #8a4d16; }
-  button.btn.secondary { background: #d68a4a; box-shadow: 0 4px 0 #a9662f; }
+  button.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #1d5d87; }
+  button.btn.secondary { background: #5aa6d6; box-shadow: 0 4px 0 #3a7ba6; }
 
   .scoreboard {
     display: flex;
@@ -227,70 +227,89 @@
     return audioCtx;
   }
 
-  // A "woof": short, low, pitch dropping bark with a bit of noise.
+  // A deep, extended "wooooof": low pitch-dropping bark with a bit of noise.
   function woof(at = 0) {
     const ctx = getCtx();
     if (!ctx) return;
     const t = ctx.currentTime + at;
+    const dur = 0.6;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(280, t);
-    osc.frequency.exponentialRampToValueAtTime(90, t + 0.18);
+    // deeper: starts low, dips, with a long "oooo" tail
+    osc.frequency.setValueAtTime(160, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.10);
+    osc.frequency.exponentialRampToValueAtTime(48, t + dur);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.25);
+    gain.gain.exponentialRampToValueAtTime(0.55, t + 0.03);
+    gain.gain.setValueAtTime(0.55, t + 0.30);          // hold the "ooooo"
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
-    // noise burst for "ruff" texture
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+    // sub-oscillator an octave down for extra depth
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(80, t);
+    sub.frequency.exponentialRampToValueAtTime(36, t + dur);
+    subGain.gain.setValueAtTime(0.0001, t);
+    subGain.gain.exponentialRampToValueAtTime(0.4, t + 0.04);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+    osc.connect(gain).connect(ctx.destination);
+    sub.connect(subGain).connect(ctx.destination);
+    osc.start(t); sub.start(t);
+    osc.stop(t + dur + 0.05); sub.stop(t + dur + 0.05);
+
+    // short noise burst at the attack for the "w" of the woof
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.14, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
     const noise = ctx.createBufferSource();
     const nGain = ctx.createGain();
     const nFilter = ctx.createBiquadFilter();
     nFilter.type = 'lowpass';
-    nFilter.frequency.value = 700;
+    nFilter.frequency.value = 500;
     noise.buffer = buf;
-    nGain.gain.setValueAtTime(0.25, t);
-    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    nGain.gain.setValueAtTime(0.3, t);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
     noise.connect(nFilter).connect(nGain).connect(ctx.destination);
     noise.start(t);
   }
 
-  // A "meow": rising-then-falling whiny tone with vibrato.
+  // A high-pitched, extended "meeeooowww": rising-then-falling whiny tone with vibrato.
   function meow(at = 0) {
     const ctx = getCtx();
     if (!ctx) return;
     const t = ctx.currentTime + at;
+    const dur = 0.75;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(520, t);
-    osc.frequency.linearRampToValueAtTime(760, t + 0.12);
-    osc.frequency.linearRampToValueAtTime(430, t + 0.38);
+    // higher pitch and a longer glide: "mee-eee-ooo-www"
+    osc.frequency.setValueAtTime(720, t);
+    osc.frequency.linearRampToValueAtTime(1050, t + 0.18);
+    osc.frequency.setValueAtTime(1050, t + 0.40);   // hold the high "eeee"
+    osc.frequency.linearRampToValueAtTime(620, t + dur);
 
-    // vibrato
+    // vibrato for the whiny character
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
-    lfo.frequency.value = 18;
-    lfoGain.gain.value = 30;
+    lfo.frequency.value = 16;
+    lfoGain.gain.value = 45;
     lfo.connect(lfoGain).connect(osc.frequency);
 
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.05);
-    gain.gain.setValueAtTime(0.4, t + 0.28);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.06);
+    gain.gain.setValueAtTime(0.4, t + 0.55);        // hold before the fade
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
     osc.connect(gain).connect(ctx.destination);
     osc.start(t);
     lfo.start(t);
-    osc.stop(t + 0.45);
-    lfo.stop(t + 0.45);
+    osc.stop(t + dur + 0.05);
+    lfo.stop(t + dur + 0.05);
   }
 
   function playSound(player) {
@@ -299,7 +318,8 @@
 
   function celebrate(player) {
     const fn = player === 'dog' ? woof : meow;
-    fn(0.0); fn(0.32); fn(0.64); // three barks / meows
+    const gap = player === 'dog' ? 0.55 : 0.7; // spacing for the longer sounds
+    fn(0); fn(gap); fn(gap * 2); // three barks / meows
   }
 
   // ---- Game state -----------------------------------------------------------
@@ -389,9 +409,14 @@
     }, 550);
   }
 
-  // Strategy: win > block > center > corner > side.
+  // Easy computer: plays a random move 90% of the time (mistakes),
+  // and only plays the smart move the other 10%.
   function chooseComputerMove() {
     const empty = cells.map((c, i) => c ? null : i).filter(i => i !== null);
+
+    if (Math.random() < 0.9) {
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
 
     const findWinning = p => {
       for (const i of empty) {
