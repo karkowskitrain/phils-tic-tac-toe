@@ -279,7 +279,7 @@
   .jtree .owlmouth{ transform-box:fill-box; transform-origin:center top; transform:scaleY(.05); animation: mouth 9s ease-in-out infinite -5s; }
   /* snake (day) and possum (night) hang from the branch and sway; snake also hisses */
   /* pivot at the branch attachment so they swing evenly both ways */
-  #snake{ transform-box:fill-box; transform-origin:48% 0%; animation: snakesway 5s ease-in-out infinite; }
+  #snake{ transform-box:fill-box; transform-origin:48% 0%; }
   #possum{ transform-box:fill-box; transform-origin:48% 0%; animation: snakesway 5s ease-in-out infinite; }
   @keyframes snakesway{ 0%{transform:rotate(0)} 25%{transform:rotate(7deg)} 50%{transform:rotate(0)} 75%{transform:rotate(-7deg)} 100%{transform:rotate(0)} }
   /* web grows from small to big as the moon crosses (same 840s cycle); spider patrols in a circle */
@@ -288,8 +288,8 @@
   .web .spider{ transform-box:fill-box; transform-origin:center; animation: spidercircle 6s linear infinite; }
   @keyframes spidercircle{ 0%{transform:translate(9px,0)} 12.5%{transform:translate(6px,6px)} 25%{transform:translate(0,9px)} 37.5%{transform:translate(-6px,6px)} 50%{transform:translate(-9px,0)} 62.5%{transform:translate(-6px,-6px)} 75%{transform:translate(0,-9px)} 87.5%{transform:translate(6px,-6px)} 100%{transform:translate(9px,0)} }
   .stongue{ transform-box:fill-box; transform-origin:top center; transform:scaleY(0); opacity:0; }
-  #snake.flick .stongue{ animation: flicktongue .55s ease-in-out; }
-  @keyframes flicktongue{ 0%{transform:scaleY(0);opacity:0} 30%{transform:scaleY(1);opacity:1} 70%{transform:scaleY(1);opacity:1} 100%{transform:scaleY(0);opacity:0} }
+  #snake.flick .stongue{ animation: flicktongue 1.1s ease-in-out; }
+  @keyframes flicktongue{ 0%{transform:scaleY(0);opacity:0} 22%{transform:scaleY(1);opacity:1} 78%{transform:scaleY(1);opacity:1} 100%{transform:scaleY(0);opacity:0} }
 
   /* river-swamp flowing up the hill through the middle */
   #swamp{ position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:min(100vw,780px); height:54%; z-index:2; }
@@ -515,7 +515,7 @@
       <ellipse cx="232" cy="622" rx="13" ry="11" fill="#3aa64a"/>
       <circle cx="226" cy="617" r="2.6" fill="#fff"/><circle cx="238" cy="617" r="2.6" fill="#fff"/>
       <circle cx="226" cy="617" r="1.4" fill="#1c2a14"/><circle cx="238" cy="617" r="1.4" fill="#1c2a14"/>
-      <path class="stongue" d="M232 632 L232 645 M232 645 l-4 6 M232 645 l4 6" stroke="#d11e1e" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path class="stongue" d="M232 632 L232 655 M232 655 l-5 8 M232 655 l5 8" stroke="#e11414" stroke-width="2.6" fill="none" stroke-linecap="round"/>
     </g>
     <!-- POSSUM hangs from the branch at night (replaces the snake, also sways) -->
     <g id="possum" class="wetnightonly">
@@ -917,7 +917,7 @@
   <div id="win">
     <div class="panel">
       <h2>🎉 You Win! 🎉</h2>
-      <p>The whole jungle is going bananas for you!</p>
+      <p>The whole jungle is going wild for you!</p>
       <button class="ui" id="winNew">Play Again</button>
     </div>
   </div>
@@ -1475,24 +1475,14 @@ function monkeySVG(){
 }
 
 const JOKES = [
-  "Why did the banana go to the doctor? It wasn't peeling well!",
-  "I'm not monkeying around... okay, maybe a little.",
-  "This game is bananas. B-A-N-A-N-A-S!",
   "I told a tree a joke. It left me stumped.",
-  "Aces high, monkeys higher!",
   "Red on black? Now you're swinging!",
-  "Do these vines make me look long-armed?",
   "I'd tell you a card joke, but I'd probably deal it wrong.",
-  "Stack 'em like bananas, friend!",
-  "Ook ook means 'nice move' in monkey.",
-  "Lost the game? Just go ape and try again.",
   "The sun's out, the cards are hot!",
   "I clap for good moves and bad puns equally.",
   "Kings go on empty stumps. I mean columns.",
-  "Why don't monkeys play cards in the jungle? Too many cheetahs!",
   "Shuffle? I prefer to call it a jungle boogie.",
   "Three-card draw: my favorite kind of treetop drama.",
-  "You've got this. Probably. Mostly. Go bananas!",
   // jokes about the swamp neighbors
   "That crocodile's got a SNAPPY sense of humor.",
   "The owl keeps asking who's winning. WHOOO indeed!",
@@ -1504,7 +1494,7 @@ const JOKES = [
   "The frog only makes ribbiting moves.",
   "Careful — the hippo called dibs on the river AND the reds.",
   "That crocodile is all in. Always. Every single hand.",
-  // monkeys teasing the swamp neighbours
+  // bears teasing the swamp neighbours
   "That croc smiles a lot for someone with breath like swamp gas.",
   "Hippo, the river called — it wants its space back.",
   "The owl thinks he's so wise, but he can't even shuffle.",
@@ -1624,7 +1614,7 @@ const ENCOURAGE = [
   "Great eye! That was exactly the move.",
   "Almost there — the whole jungle's rooting for you!",
   "Ooh, slick! You make this look easy.",
-  "Nice one! The monkeys approve!",
+  "Nice one! The bears approve!",
   "Boom! Straight home. Love it.",
   "Yes! That's how the pros do it.",
   "Sharp — you spotted that one early!",
@@ -1870,7 +1860,7 @@ function init(){
   function snakeHiss(){ if(isNight) return; const s=document.getElementById('snake'); if(!s) return;
     s.classList.remove('flick'); s.getBoundingClientRect(); s.classList.add('flick');
     if(audioUnlocked) sndSnake();
-    setTimeout(()=>s.classList.remove('flick'), 650); }
+    setTimeout(()=>s.classList.remove('flick'), 1150); }
   function scheduleSnake(){ setTimeout(()=>{ if(!document.hidden) snakeHiss(); scheduleSnake(); }, 8000 + Math.random()*14000); }
   setTimeout(snakeHiss, 7000); scheduleSnake();
 
