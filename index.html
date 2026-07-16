@@ -135,6 +135,9 @@
   .monkey.cheer{ animation: cheer .45s ease-in-out infinite; }
   /* bear fur (recolors to a polar bear on snowy nights) */
   .monkey .fur{ fill:#8a5f38; } .monkey .belly{ fill:#d8b483; } .monkey .ie{ fill:#d8b483; } .monkey .arm{ stroke:#6f4a29; }
+  /* the right-hand bear is a girl: she wears a pink bow */
+  .monkey .bow{ display:none; }
+  .stumpwrap.right .monkey .bow{ display:inline; }
   body.snowing .monkey .fur{ fill:#eef3f7; } body.snowing .monkey .belly{ fill:#c3cdd6; } body.snowing .monkey .ie{ fill:#c3cdd6; } body.snowing .monkey .arm{ stroke:#d3dce4; }
 
   @keyframes cheer{ 0%,100%{transform:translateY(0) rotate(-3deg);} 50%{transform:translateY(-16px) rotate(3deg);} }
@@ -1460,6 +1463,14 @@ function monkeySVG(){
     <!-- nose + mouth -->
     <ellipse cx="60" cy="56" rx="5.5" ry="3.6" fill="#2a1a0a"/>
     <path d="M60 59 v5 M60 64 q-7 4 -12 1 M60 64 q7 4 12 1" stroke="#5b3a1d" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- pink bow (only shown on the right-hand bear) -->
+    <g class="bow">
+      <path d="M60 20 L43 11 Q39 20 43 29 Z" fill="#ff7ec0"/>
+      <path d="M60 20 L77 11 Q81 20 77 29 Z" fill="#ff7ec0"/>
+      <path d="M60 20 L47 15 Q45 20 47 25 Z" fill="#ff5fab"/>
+      <path d="M60 20 L73 15 Q75 20 73 25 Z" fill="#ff5fab"/>
+      <ellipse cx="60" cy="20" rx="5" ry="6.5" fill="#ff4f9f"/>
+    </g>
   </svg>`;
 }
 
