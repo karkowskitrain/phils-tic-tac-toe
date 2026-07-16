@@ -134,7 +134,7 @@
   @keyframes bobR{ 0%,100%{transform:scaleX(-1) translateY(0);} 50%{transform:scaleX(-1) translateY(-10px);} }
   .monkey.cheer{ animation: cheer .45s ease-in-out infinite; }
   /* bear fur (recolors to a polar bear on snowy nights) */
-  .monkey .fur{ fill:#4e3620; } .monkey .belly{ fill:#caa06a; } .monkey .ie{ fill:#caa06a; } .monkey .arm{ stroke:#3f2c19; }
+  .monkey .fur{ fill:#8a5f38; } .monkey .belly{ fill:#d8b483; } .monkey .ie{ fill:#d8b483; } .monkey .arm{ stroke:#6f4a29; }
   body.snowing .monkey .fur{ fill:#eef3f7; } body.snowing .monkey .belly{ fill:#c3cdd6; } body.snowing .monkey .ie{ fill:#c3cdd6; } body.snowing .monkey .arm{ stroke:#d3dce4; }
 
   @keyframes cheer{ 0%,100%{transform:translateY(0) rotate(-3deg);} 50%{transform:translateY(-16px) rotate(3deg);} }
@@ -276,7 +276,7 @@
   .jtree .owlmouth{ transform-box:fill-box; transform-origin:center top; transform:scaleY(.05); animation: mouth 9s ease-in-out infinite -5s; }
   /* snake (day) and possum (night) hang from the branch and sway; snake also hisses */
   /* pivot at the branch attachment so they swing evenly both ways */
-  #snake{ transform-box:fill-box; transform-origin:79% 0%; animation: snakesway 5s ease-in-out infinite; }
+  #snake{ transform-box:fill-box; transform-origin:48% 0%; animation: snakesway 5s ease-in-out infinite; }
   #possum{ transform-box:fill-box; transform-origin:48% 0%; animation: snakesway 5s ease-in-out infinite; }
   @keyframes snakesway{ 0%{transform:rotate(0)} 25%{transform:rotate(7deg)} 50%{transform:rotate(0)} 75%{transform:rotate(-7deg)} 100%{transform:rotate(0)} }
   /* web grows from small to big as the moon crosses (same 840s cycle); spider patrols in a circle */
@@ -337,11 +337,11 @@
   /* turtle basks by day; pokes its head out and looks around at random */
   #turtle{ width:66px; bottom:19%; left:55%; }
   #turtle .tneck{ transform-box:fill-box; transform-origin:100% 50%; transform:scaleX(.5); }
-  #turtle.extend .tneck{ animation: tneckext 1.7s ease-in-out; }
-  @keyframes tneckext{ 0%,100%{transform:scaleX(.5)} 42%,58%{transform:scaleX(1.8)} }
+  #turtle.extend .tneck{ animation: tneckext 2.6s ease-in-out; }
+  @keyframes tneckext{ 0%,100%{transform:scaleX(.5)} 30%,70%{transform:scaleX(2.7)} }
   #turtle .thead{ transform-box:fill-box; }
-  #turtle.extend .thead{ animation: theadext 1.7s ease-in-out; }
-  @keyframes theadext{ 0%,100%{transform:translateX(0)} 42%,58%{transform:translateX(-17px)} }
+  #turtle.extend .thead{ animation: theadext 2.6s ease-in-out; }
+  @keyframes theadext{ 0%,100%{transform:translateX(0)} 30%,70%{transform:translateX(-30px)} }
   #turtle.look .eyes{ animation: eyeroll 1.2s ease-in-out; }
   /* parrot (day): whistles (opens beak) and rolls its eyes to look around */
   #parrot .pbeak{ transform-box:fill-box; transform-origin:100% 0%; }
@@ -1860,8 +1860,8 @@ function init(){
   function scheduleParrot(){ setTimeout(()=>{ if(!document.hidden) parrotAct(); scheduleParrot(); }, 5000 + Math.random()*7000); }
   scheduleParrot();
   function turtleAct(){ if(isNight) return; const t=document.getElementById('turtle'); if(!t) return;
-    if(Math.random()<0.5) pulse(t,'extend',1750); else pulse(t,'look',1300); }
-  function scheduleTurtle(){ setTimeout(()=>{ if(!document.hidden) turtleAct(); scheduleTurtle(); }, 6000 + Math.random()*8000); }
+    if(Math.random()<0.75) pulse(t,'extend',2650); else pulse(t,'look',1300); }
+  function scheduleTurtle(){ setTimeout(()=>{ if(!document.hidden) turtleAct(); scheduleTurtle(); }, 4000 + Math.random()*5000); }
   scheduleTurtle();
 
 
