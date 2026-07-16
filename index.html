@@ -1,473 +1,1882 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Phil's Tic Tac Toe</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#7fc7e8">
+<title>Monkey Solitaire</title>
 <style>
-  :root {
-    --bg1: #eaf6ff;
-    --bg2: #c7e6fb;
-    --board: #ffffff;
-    --line: #8fc4ec;
-    --accent: #2f80b5;
-    --shadow: rgba(40, 100, 150, 0.25);
+  /* ============================================================
+     Monkey Solitaire - an original outdoor three-card solitaire.
+     Single file, no dependencies. Inspired in spirit by old
+     monkey-themed solitaire games; all art/jokes/sounds original.
+     ============================================================ */
+  :root{
+    --card-w: 44px;
+    --card-h: 62px;
+    --gap: 4px;
+    --pad: 5px;
+    --felt: rgba(20, 92, 50, 0.82);
+    --radius: 6px;
+    --font: "Comic Sans MS", "Chalkboard SE", "Marker Felt", system-ui, sans-serif;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    font-family: var(--font);
+    background:#7fc7e8;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    touch-action: manipulation;
   }
 
-  * { box-sizing: border-box; }
+  /* ---------- Background outdoor scene ---------- */
+  #sky{
+    position:fixed; inset:0; z-index:0;
+    background: linear-gradient(#3f8fd6 0%, #6fb4e6 38%, #bfe2f3 70%, #e8f6ff 100%);
+    filter: blur(5px);
+  }
+  /* ---------- day / night cycle (sun then moon, ~14 min round trip) ---------- */
+  #sun{
+    position:fixed; z-index:2; top:0; left:0;
+    width:96px; height:96px; border-radius:50%;
+    background: radial-gradient(circle at 50% 50%, #fff6c0 0%, #ffe26b 45%, #ffcf3f 70%, rgba(255,207,63,0) 72%);
+    filter: blur(1px);
+    animation: suncycle 840s linear infinite;
+  }
+  #moon{
+    position:fixed; z-index:2; top:0; left:0;
+    width:80px; height:80px; border-radius:50%;
+    background: radial-gradient(circle at 38% 38%, #ffffff 0%, #eef2ff 46%, #cad4f0 68%, rgba(202,212,240,0) 72%);
+    filter: blur(.4px);
+    animation: mooncycle 840s linear infinite;
+  }
+  /* sun crosses in the day half, then hides; moon crosses the night half on the same path/speed */
+  @keyframes suncycle{
+    0%   { transform: translate(84vw,4vh);  opacity:1; }
+    41%  { transform: translate(12vw,14vh); opacity:1; }
+    45%  { transform: translate(6vw,16vh);  opacity:0; }
+    96%  { transform: translate(84vw,4vh);  opacity:0; }
+    100% { transform: translate(84vw,4vh);  opacity:1; }
+  }
+  @keyframes mooncycle{
+    0%,49% { transform: translate(84vw,4vh);  opacity:0; }
+    50%    { transform: translate(84vw,4vh);  opacity:1; }
+    91%    { transform: translate(12vw,14vh); opacity:1; }
+    95%    { transform: translate(6vw,16vh);  opacity:0; }
+    100%   { transform: translate(84vw,4vh);  opacity:0; }
+  }
+  /* night darkens the sky behind everything */
+  #night{ position:fixed; inset:0; z-index:0; background: linear-gradient(#0a1026, #16203f); opacity:0; animation: nightcycle 840s linear infinite; }
+  @keyframes nightcycle{ 0%,41%{opacity:0;} 50%,91%{opacity:.9;} 99%,100%{opacity:0;} }
+  /* stars replace the clouds at night and twinkle at different times */
+  #stars{ position:fixed; top:0; left:0; right:0; height:36%; z-index:1; opacity:0; pointer-events:none; animation: starcycle 840s linear infinite; }
+  @keyframes starcycle{ 0%,44%{opacity:0;} 53%,90%{opacity:1;} 98%,100%{opacity:0;} }
+  #stars i{ position:absolute; width:3px; height:3px; border-radius:50%; background:#fff; box-shadow:0 0 5px #fff; animation: twinkle 3s ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{opacity:.2; transform:scale(.6);} 50%{opacity:1; transform:scale(1.15);} }
+  /* fish that jumps out of the river and dives back in */
+  #fish{ position:fixed; z-index:4; bottom:30%; left:46%; width:46px; opacity:0; pointer-events:none; }
+  #fish svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #fish.jump{ animation: fishjump 1.6s ease-in-out; }
+  @keyframes fishjump{
+    0%   { transform: translateY(22px) rotate(-30deg); opacity:0; }
+    14%  { opacity:1; }
+    50%  { transform: translateY(-52px) rotate(14deg); opacity:1; }
+    86%  { opacity:1; }
+    100% { transform: translateY(22px) rotate(64deg); opacity:0; }
+  }
+  /* two clouds drifting slowly across, above the treetops */
+  .cloud{
+    position:fixed; z-index:4; width:150px; height:48px; background:#fff; border-radius:40px;
+    filter: blur(2px); opacity:.92;
+  }
+  .cloud:before, .cloud:after{ content:""; position:absolute; background:#fff; border-radius:50%; }
+  .cloud:before{ width:62px; height:62px; top:-28px; left:26px; }
+  .cloud:after{ width:48px; height:48px; top:-18px; left:78px; }
+  #cloud1{ top:5%;  animation: drift 78s linear infinite 0s, cloudcycle 840s linear infinite 0s; }
+  #cloud2{ top:11%; transform:scale(.72); animation: drift 112s linear infinite -46s, cloudcycle 840s linear infinite 0s; }
+  @keyframes drift{ from{ left:-210px;} to{ left:112vw;} }
+  @keyframes cloudcycle{ 0%,41%{opacity:.92;} 48%,93%{opacity:0;} 99%,100%{opacity:.92;} }
 
-  body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(circle at top, var(--bg2), var(--bg1));
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 24px 16px 48px;
-    color: #5a3a16;
+  #ground{
+    position:fixed; left:0; right:0; bottom:0; height:54%; z-index:1;
+    background: linear-gradient(#a6db78 0%, #95cf63 34%, #84c552 70%, #75b945 100%);
+    border-top-left-radius:55% 60px; border-top-right-radius:55% 60px;
+    transition: background 1.2s ease;
+  }
+  /* winter: the grass turns to snow */
+  body.snowing #ground{ background: linear-gradient(#ffffff 0%, #eef4f8 40%, #dde8f0 100%); }
+
+  /* rocks + grass tufts scattered over the greenery */
+  #greenery{ position:fixed; left:0; right:0; bottom:0; height:54%; z-index:2; pointer-events:none; }
+  #greenery .scatter{ position:absolute; }
+  body.snowing #greenery .rk1{ fill:#c9d3db; } body.snowing #greenery .rk2{ fill:#aab6c0; }
+  body.snowing #greenery .rk3{ fill:#e4ebf1; } body.snowing #greenery .gt{ stroke:#cfe0e6; }
+
+  /* ---------- Tree stumps + monkeys ---------- */
+  .stumpwrap{ position:fixed; bottom:0; z-index:4; width:120px; pointer-events:none; }
+  .stumpwrap.left{ left:0; }
+  .stumpwrap.right{ right:0; }
+  .stumpwrap svg.stump{ width:120px; height:auto; display:block; position:absolute; bottom:-6px; }
+  .stumpwrap.left svg.stump{ left:-26px; }
+  .stumpwrap.right svg.stump{ right:-26px; }
+
+  .monkey{ position:absolute; bottom:54px; width:96px; height:auto; transition: transform .35s ease; }
+  .stumpwrap.left .monkey{ left:6px; }
+  .stumpwrap.right .monkey{ right:6px; transform: scaleX(-1); }
+  .monkey .eyes{ transition: transform .4s ease; }
+  .monkey.look .eyes{ transform: translateX(5px) translateY(2px); }
+  .monkey.look2 .eyes{ transform: translateX(-5px) translateY(2px); }
+  .monkey.bob{ animation: bob .5s ease; }
+  .stumpwrap.right .monkey.bob{ animation: bobR .5s ease; }
+  @keyframes bob{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+  @keyframes bobR{ 0%,100%{transform:scaleX(-1) translateY(0);} 50%{transform:scaleX(-1) translateY(-10px);} }
+  .monkey.cheer{ animation: cheer .45s ease-in-out infinite; }
+  /* bear fur (recolors to a polar bear on snowy nights) */
+  .monkey .fur{ fill:#4e3620; } .monkey .belly{ fill:#caa06a; } .monkey .ie{ fill:#caa06a; } .monkey .arm{ stroke:#3f2c19; }
+  body.snowing .monkey .fur{ fill:#eef3f7; } body.snowing .monkey .belly{ fill:#c3cdd6; } body.snowing .monkey .ie{ fill:#c3cdd6; } body.snowing .monkey .arm{ stroke:#d3dce4; }
+
+  @keyframes cheer{ 0%,100%{transform:translateY(0) rotate(-3deg);} 50%{transform:translateY(-16px) rotate(3deg);} }
+
+  /* joke sign */
+  .sign{
+    position:absolute; bottom:165px; width:192px; z-index:4;
+    opacity:0; transform: translateY(26px) scale(.6); transform-origin:bottom center;
+    transition: opacity .3s ease, transform .35s cubic-bezier(.2,1.4,.5,1);
+    pointer-events:none;
+  }
+  .stumpwrap.left .sign{ left:-2px; }
+  .stumpwrap.right .sign{ right:-2px; }
+  .sign.show{ opacity:1; transform: translateY(0) scale(1); }
+  .sign .board{
+    background: linear-gradient(#f6e2b8,#e8c98a);
+    border:4px solid #9c6b32; border-radius:11px;
+    color:#5b3a16; font-size:16px; line-height:1.22; font-weight:bold;
+    padding:11px 11px 12px; text-align:center; min-height:62px;
+    box-shadow: 0 4px 8px rgba(0,0,0,.28);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sign .post{ width:10px; height:26px; background:#9c6b32; margin:0 auto; border-radius:0 0 4px 4px; }
+
+  /* ---------- Play surface ---------- */
+  #game{ position:fixed; inset:0; z-index:5; display:flex; flex-direction:column; align-items:center;
+         padding: max(6px, env(safe-area-inset-top)) 0 0; }
+  #bar{
+    width:min(100vw,480px); display:flex; align-items:center; justify-content:space-between;
+    padding: 2px 10px 4px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5);
+  }
+  #bar h1{ font-size:17px; margin:0; letter-spacing:.5px; }
+  #bar .btns{ display:flex; gap:6px; }
+  button.ui{
+    font-family:var(--font); font-size:13px; font-weight:bold; color:#2a4d2f;
+    background: linear-gradient(#fff7d8,#ffe07a); border:2px solid #c79a2e;
+    border-radius:14px; padding:5px 11px; cursor:pointer; box-shadow:0 2px 0 #b07f1e;
+  }
+  button.ui:active{ transform: translateY(2px); box-shadow:0 0 0 #b07f1e; }
+  #finishBtn{ display:none; }
+
+  #table{
+    position:relative; width:min(100vw,480px); padding: var(--pad);
+    margin-top:2px;
+  }
+  .row{ display:grid; grid-template-columns: repeat(7, 1fr); gap: var(--gap); }
+  #topRow{ margin-bottom: 8px; }
+  #topRow .cell{ position:relative; height: var(--card-h); }
+  #tableau .col{ position:relative; min-height: calc(var(--card-h) + 6px); }
+
+  /* ---------- Cards & slots ---------- */
+  .slot{
+    width:var(--card-w); height:var(--card-h); border-radius:var(--radius);
+    border:2px dashed rgba(255,255,255,.55); background: rgba(255,255,255,.08);
+    display:flex; align-items:center; justify-content:center;
+    font-size: calc(var(--card-h) * .42); color: rgba(255,255,255,.45);
+  }
+  .card{
+    position:absolute; top:0; left:0;
+    width:var(--card-w); height:var(--card-h); border-radius:var(--radius);
+    background:#fff; border:1px solid #cfcfcf; box-shadow:0 1px 2px rgba(0,0,0,.35);
+    overflow:hidden; cursor:pointer;
+  }
+  .card.red{ color:#d11e1e; } .card.black{ color:#1a1a1a; }
+  .card .corner{
+    position:absolute; top:1px; left:3px; font-weight:bold; line-height:1;
+    font-size: calc(var(--card-h) * .26); font-family: Arial, sans-serif;
+  }
+  .card .corner small{ display:block; font-size: calc(var(--card-h)*.22); }
+  .card .pip{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size: calc(var(--card-h) * .5);
+  }
+  .card.back{
+    background:
+      repeating-linear-gradient(45deg, #2f6fb0 0 6px, #2961a0 6px 12px),
+      #2f6fb0;
+    border:1px solid #21507f;
+  }
+  .card.back:after{
+    content:""; position:absolute; inset:5px; border-radius:4px;
+    border:2px solid rgba(255,255,255,.35);
+  }
+  .card.sel{ outline:3px solid #ffd23f; outline-offset:-1px; box-shadow:0 0 10px #ffd23f; }
+  .card.hint{ outline:3px solid #5ad15a; }
+
+  /* ---------- Win celebration ---------- */
+  #crowd{
+    position:fixed; left:0; right:0; bottom:0; z-index:6; height:90px;
+    display:flex; align-items:flex-end; justify-content:center; gap:6px;
+    pointer-events:none; opacity:0; transition:opacity .4s; font-size:42px;
+  }
+  #crowd.show{ opacity:1; }
+  #crowd span{ display:inline-block; animation: hop .6s ease-in-out infinite; }
+  #crowd span:nth-child(2n){ animation-delay:.15s; }
+  #crowd span:nth-child(3n){ animation-delay:.3s; }
+  @keyframes hop{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }
+
+  /* randomized win effects (confetti / balloons / fireworks) */
+  #confetti, #balloons, #fireworks{ position:fixed; inset:0; z-index:8; pointer-events:none; overflow:hidden; }
+  #confetti i{ position:absolute; top:-8%; border-radius:1px; animation: conffall linear infinite; }
+  @keyframes conffall{ from{ transform: translateY(-10vh) rotate(0);} to{ transform: translateY(112vh) rotate(760deg);} }
+  #balloons b{ position:absolute; bottom:-70px; border-radius:50% 50% 48% 48%; box-shadow: inset -4px -5px 0 rgba(0,0,0,.08); animation: balloonrise ease-in forwards; }
+  #balloons b::after{ content:""; position:absolute; left:50%; top:98%; width:1px; height:38px; background:rgba(255,255,255,.55); }
+  @keyframes balloonrise{ from{ transform: translateY(0) translateX(0);} to{ transform: translateY(-132vh) translateX(var(--drift,0));} }
+  #fireworks span{ position:absolute; width:6px; height:6px; border-radius:50%; animation: sparkburst ease-out forwards; }
+  @keyframes sparkburst{ from{ transform: translate(0,0) scale(1); opacity:1;} to{ transform: translate(var(--dx),var(--dy)) scale(.3); opacity:0;} }
+
+  #win{
+    position:fixed; inset:0; z-index:7; display:none;
+    align-items:center; justify-content:center; flex-direction:column;
+    background: radial-gradient(circle at 50% 40%, rgba(0,0,0,.15), rgba(0,0,0,.45));
+  }
+  #win.show{ display:flex; }
+  #win .panel{
+    background: linear-gradient(#fff7d8,#ffe07a); border:4px solid #c79a2e;
+    border-radius:18px; padding:22px 30px; text-align:center; color:#2a4d2f;
+    box-shadow:0 10px 30px rgba(0,0,0,.4); animation: pop .5s cubic-bezier(.2,1.5,.5,1);
+  }
+  @keyframes pop{ from{transform:scale(.4); opacity:0} to{transform:scale(1); opacity:1} }
+  #win h2{ margin:0 0 4px; font-size:30px; }
+  #win p{ margin:0 0 14px; font-size:15px; }
+
+  #toast{
+    position:fixed; left:50%; top:54%; transform:translateX(-50%);
+    z-index:8; background:rgba(0,0,0,.78); color:#fff; padding:8px 16px;
+    border-radius:20px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none;
+  }
+  #toast.show{ opacity:1; }
+
+  /* ---------- Jungle: side trees, river, critters ---------- */
+  .jtree,#swamp,.animal{ pointer-events:none; }
+  /* tall trees, half off each edge (only the inner half shows) */
+  .jtree{ position:fixed; top:0; bottom:0; width:300px; z-index:3; }
+  .jtree svg{ width:100%; height:100%; display:block; overflow:visible; }
+  .jtree.l{ left:-150px; }
+  .jtree.r{ right:-150px; }
+  .jtree .owlpupils{ transform-box:fill-box; transform-origin:center; animation: look 7s ease-in-out infinite; }
+  .jtree .owlmouth{ transform-box:fill-box; transform-origin:center top; transform:scaleY(.05); animation: mouth 9s ease-in-out infinite -5s; }
+  /* snake (day) and possum (night) hang from the branch and sway; snake also hisses */
+  /* pivot at the branch attachment so they swing evenly both ways */
+  #snake{ transform-box:fill-box; transform-origin:79% 0%; animation: snakesway 5s ease-in-out infinite; }
+  #possum{ transform-box:fill-box; transform-origin:48% 0%; animation: snakesway 5s ease-in-out infinite; }
+  @keyframes snakesway{ 0%{transform:rotate(0)} 25%{transform:rotate(7deg)} 50%{transform:rotate(0)} 75%{transform:rotate(-7deg)} 100%{transform:rotate(0)} }
+  /* web grows from small to big as the moon crosses (same 840s cycle); spider patrols in a circle */
+  .web .webwrap{ transform-box:fill-box; transform-origin:48% 6%; animation: webgrow 840s linear infinite; }
+  @keyframes webgrow{ 0%,45%{transform:scale(.18)} 90%{transform:scale(1)} 100%{transform:scale(.18)} }
+  .web .spider{ transform-box:fill-box; transform-origin:center; animation: spidercircle 6s linear infinite; }
+  @keyframes spidercircle{ 0%{transform:translate(9px,0)} 12.5%{transform:translate(6px,6px)} 25%{transform:translate(0,9px)} 37.5%{transform:translate(-6px,6px)} 50%{transform:translate(-9px,0)} 62.5%{transform:translate(-6px,-6px)} 75%{transform:translate(0,-9px)} 87.5%{transform:translate(6px,-6px)} 100%{transform:translate(9px,0)} }
+  .stongue{ transform-box:fill-box; transform-origin:top center; transform:scaleY(0); opacity:0; }
+  #snake.flick .stongue{ animation: flicktongue .55s ease-in-out; }
+  @keyframes flicktongue{ 0%{transform:scaleY(0);opacity:0} 30%{transform:scaleY(1);opacity:1} 70%{transform:scaleY(1);opacity:1} 100%{transform:scaleY(0);opacity:0} }
+
+  /* river-swamp flowing up the hill through the middle */
+  #swamp{ position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:min(100vw,780px); height:54%; z-index:2; }
+  #swamp svg{ width:100%; height:100%; display:block; overflow:visible; }
+  /* little wooden bridge over the river where it crests the hill */
+  #bridge{ position:fixed; z-index:3; top:43.5%; left:42%; transform:translateX(-50%); width:128px; pointer-events:none; }
+  #bridge svg{ width:100%; height:auto; display:block; overflow:visible; }
+
+  .animal{ position:fixed; z-index:4; }
+  .animal svg{ width:100%; height:auto; display:block; overflow:visible; }
+  .animal .eyes,.animal .openmouth{ transform-box:fill-box; }
+  .animal .eyes{ transform-origin:center; }
+  .animal .openmouth{ transform-origin:center top; transform:scaleY(.05); }
+  @keyframes look{ 0%,30%{transform:translateX(0)} 45%,62%{transform:translateX(3px)} 75%,90%{transform:translateX(-3px)} 100%{transform:translateX(0)} }
+  @keyframes mouth{ 0%,80%,100%{transform:scaleY(.05)} 87%,93%{transform:scaleY(1)} }
+  @keyframes water{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)} }
+  /* hippo sinks fully under, then rises, once per ~2 min */
+  @keyframes hipposink{
+    0%,40%   { transform: translateX(-50%) translateY(0);    opacity:1; }
+    50%,60%  { transform: translateX(-50%) translateY(60px); opacity:0; }
+    70%,100% { transform: translateX(-50%) translateY(0);    opacity:1; }
+  }
+  /* crocodile upper jaw lifts open (lower jaw stays put), then closes */
+  @keyframes crocopen{ 0%{transform:rotate(0)} 22%{transform:rotate(-44deg)} 76%{transform:rotate(-44deg)} 100%{transform:rotate(0)} }
+
+  /* hippo half-way up the river: grey, submerges ~every 2 min by day; stays under all night */
+  #hippo{ width:100px; bottom:34%; left:50%; transform:translateX(-50%); animation: hipposink 120s ease-in-out infinite; transition: opacity 1.1s ease, transform 1.1s ease; }
+  #hippo svg{ animation: water 5s ease-in-out infinite; }
+  #hippo .eyes{ animation: look 11s ease-in-out infinite; }
+  body.night #hippo{ animation:none; transform: translateX(-50%) translateY(72px); opacity:0; }
+  /* crocodile at the bottom, facing the right-hand monkey; opens only every 2-3 min by day, sleeps at night */
+  #croc{ width:178px; bottom:6px; left:50%; transform:translateX(-50%); }
+  #croc .upperjaw{ transform-box:fill-box; transform-origin:0% 100%; }
+  #croc.chomping .upperjaw{ animation: crocopen 2.6s ease-in-out; }
+  #croc .eyes{ transform-box:fill-box; transform-origin:center; animation: look 9s ease-in-out infinite; }
+  #croc .crocsleep{ opacity:0; transition: opacity .8s ease; }
+  body.night #croc .eyes{ opacity:0; }
+  body.night #croc .crocsleep{ opacity:1; }
+  #croc .zzz text{ opacity:0; transform-box:fill-box; }
+  body.night #croc .zzz .z1{ animation: zfloat 3s ease-in-out infinite; }
+  body.night #croc .zzz .z2{ animation: zfloat 3s ease-in-out infinite .9s; }
+  body.night #croc .zzz .z3{ animation: zfloat 3s ease-in-out infinite 1.8s; }
+  @keyframes zfloat{ 0%{opacity:0; transform:translateY(0)} 20%{opacity:.95} 100%{opacity:0; transform:translateY(-24px)} }
+  /* frog off on the side of the swamp, away from the others */
+  #frog{ width:54px; bottom:21%; left:57%; }
+  #frog .eyes{ animation: look 8s ease-in-out infinite; }
+  #frog .openmouth{ animation: mouth 7.5s ease-in-out infinite -2s; }
+  /* turtle basks by day; pokes its head out and looks around at random */
+  #turtle{ width:66px; bottom:19%; left:55%; }
+  #turtle .tneck{ transform-box:fill-box; transform-origin:100% 50%; transform:scaleX(.5); }
+  #turtle.extend .tneck{ animation: tneckext 1.7s ease-in-out; }
+  @keyframes tneckext{ 0%,100%{transform:scaleX(.5)} 42%,58%{transform:scaleX(1.8)} }
+  #turtle .thead{ transform-box:fill-box; }
+  #turtle.extend .thead{ animation: theadext 1.7s ease-in-out; }
+  @keyframes theadext{ 0%,100%{transform:translateX(0)} 42%,58%{transform:translateX(-17px)} }
+  #turtle.look .eyes{ animation: eyeroll 1.2s ease-in-out; }
+  /* parrot (day): whistles (opens beak) and rolls its eyes to look around */
+  #parrot .pbeak{ transform-box:fill-box; transform-origin:100% 0%; }
+  #parrot.whistle .pbeak{ animation: pbeak .55s ease-in-out; }
+  @keyframes pbeak{ 0%,100%{transform:rotate(0)} 45%{transform:rotate(24deg)} }
+  #parrot .peyes{ transform-box:fill-box; transform-origin:center; }
+  #parrot.look .peyes{ animation: eyeroll 1.2s ease-in-out; }
+  @keyframes eyeroll{ 0%{transform:translate(0,0)} 25%{transform:translate(2px,-1.5px)} 55%{transform:translate(-2px,1.5px)} 80%{transform:translate(1px,1px)} 100%{transform:translate(0,0)} }
+
+  /* eagle that flies across, and a tiger that visits the river */
+  #eagle{ position:fixed; z-index:4; top:7%; left:0; width:88px; opacity:0; pointer-events:none; }
+  #eagle svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #eagle.fly{ opacity:1; animation: eaglefly 7s linear; }
+  @keyframes eaglefly{ from{ transform: translateX(-160px); } to{ transform: translateX(calc(100vw + 160px)); } }
+  .ewing{ transform-box:fill-box; transform-origin:bottom left; animation: flapU .42s ease-in-out infinite; }
+  .ewing2{ transform-box:fill-box; transform-origin:top left; animation: flapD .42s ease-in-out infinite; }
+  @keyframes flapU{ 0%,100%{transform:rotate(3deg)} 50%{transform:rotate(-30deg)} }
+  @keyframes flapD{ 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(30deg)} }
+  /* snowy owl = flyer on snowy nights */
+  #snowowl{ position:fixed; z-index:4; top:9%; left:0; width:84px; opacity:0; pointer-events:none; }
+  #snowowl svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #snowowl.fly{ opacity:1; animation: eaglefly 7.5s linear; }
+
+  #tiger{ position:fixed; z-index:4; bottom:45%; right:26%; width:66px; opacity:0; pointer-events:none; }
+  #tiger svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #tiger.visiting{ opacity:1; animation: tigervisit 16s ease-in-out forwards; }
+  #tiger.leaving .tbody{ transform: scaleX(-1); }
+  @keyframes tigervisit{
+    0%   { transform: translateX(190%);  opacity:1; }
+    20%  { transform: translateX(-100%); opacity:1; }              /* runs in to the middle */
+    26%  { transform: translateX(-100%) translateY(7px); }          /* sits down */
+    70%  { transform: translateX(-100%) translateY(7px); }
+    78%  { transform: translateX(-100%); }                          /* stands up */
+    90%  { transform: translateX(55%);   opacity:1; }               /* heads back toward the tree */
+    95%  { transform: translateX(110%);  opacity:0; }               /* vanishes behind the tree */
+    100% { transform: translateX(190%);  opacity:0; }
   }
 
-  h1 {
-    font-size: clamp(2rem, 6vw, 3.2rem);
-    margin: 8px 0 4px;
-    text-align: center;
-    color: var(--accent);
-    text-shadow: 2px 2px 0 #fff, 4px 4px 0 var(--shadow);
-  }
+  /* day -> night animal swaps: cross-fade, staggered so they change one-by-one */
+  .dayonly{ opacity:1; transition: opacity 1s ease 1.2s; }
+  body.night .dayonly{ opacity:0; transition-delay:0s; }
+  .nightonly{ opacity:0; transition: opacity 1s ease 0s; }
+  body.night .nightonly{ opacity:1; transition-delay:1.2s; }
+  /* clear/rain nights only (hidden on snowy nights, where the arctic cast takes over) */
+  .wetnightonly{ opacity:0; transition: opacity 1s ease; }
+  body.night:not(.snowing) .wetnightonly{ opacity:1; transition-delay:1.2s; }
+  /* snowy night only (arctic animals) */
+  .snowonly{ opacity:0; transition: opacity 1s ease; }
+  body.night.snowing .snowonly{ opacity:1; transition-delay:1.2s; }
+  /* snow settling on the treetops in winter */
+  .snowcap{ opacity:0; transition: opacity 1.2s ease; }
+  body.snowing .snowcap{ opacity:1; }
 
-  .subtitle {
-    margin: 0 0 18px;
-    font-size: 1.05rem;
-    opacity: 0.8;
-  }
+  /* bat = night-time flyer (reuses the eagle's flight path) */
+  #bat{ position:fixed; z-index:4; top:8%; left:0; width:76px; opacity:0; pointer-events:none; }
+  #bat svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #bat.fly{ opacity:1; animation: eaglefly 7s linear; }
+  .bwing{ transform-box:fill-box; transform-origin:100% 50%; animation: bflap .3s ease-in-out infinite; }
+  .bwing2{ transform-box:fill-box; transform-origin:0% 50%; animation: bflap .3s ease-in-out infinite; }
+  @keyframes bflap{ 0%,100%{transform:rotate(10deg)} 50%{transform:rotate(-16deg)} }
 
-  .status {
-    font-size: 1.4rem;
-    font-weight: bold;
-    min-height: 2.2rem;
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-align: center;
-  }
-  .status svg { width: 36px; height: 36px; }
+  /* wolf = night-time river visitor (reuses the tiger walk/sit animation) */
+  #wolf{ position:fixed; z-index:4; bottom:45%; right:26%; width:66px; opacity:0; pointer-events:none; }
+  #wolf svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #wolf.visiting{ opacity:1; animation: tigervisit 16s ease-in-out forwards; }
+  #wolf.leaving .tbody{ transform: scaleX(-1); }
+  /* arctic cast for snowy nights */
+  #walrus{ width:118px; bottom:33%; left:50%; transform:translateX(-50%); }
+  #walrus .eyes{ animation: look 12s ease-in-out infinite; }
+  #penguin{ width:46px; bottom:19%; left:61%; }
+  #seal{ width:96px; bottom:12%; left:31%; }
+  #seal .eyes{ animation: look 10s ease-in-out infinite; }
+  #moose{ position:fixed; z-index:4; bottom:45%; right:26%; width:74px; opacity:0; pointer-events:none; }
+  #moose svg{ width:100%; height:auto; display:block; overflow:visible; }
+  #moose.visiting{ opacity:1; animation: tigervisit 16s ease-in-out forwards; }
+  #moose.leaving .tbody{ transform: scaleX(-1); }
+  #moose .eyes{ animation: look 11s ease-in-out infinite; }
 
-  .board {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    background: var(--line);
-    padding: 10px;
-    border-radius: 18px;
-    box-shadow: 0 10px 30px var(--shadow);
-    width: min(92vw, 420px);
-    aspect-ratio: 1 / 1;
-  }
+  /* weather overlays: snow on the 2nd night, rain on the 3rd (sunny by day) */
+  #snow, #rain{ position:fixed; inset:0; z-index:6; pointer-events:none; overflow:hidden; opacity:0; transition: opacity 1.5s ease; }
+  body.snowing #snow{ opacity:1; }
+  body.raining #rain{ opacity:1; }
+  #snow i, #rain i{ animation-play-state: paused; }
+  body.snowing #snow i{ animation-play-state: running; }
+  body.raining #rain i{ animation-play-state: running; }
+  #snow i{ position:absolute; top:-6%; border-radius:50%; background:#fff; box-shadow:0 0 3px rgba(255,255,255,.6); animation: snowfall linear infinite; }
+  @keyframes snowfall{ from{ transform: translateY(-8vh) translateX(-9px);} to{ transform: translateY(112vh) translateX(9px);} }
+  #rain i{ position:absolute; top:-8%; width:2px; background: linear-gradient(rgba(174,206,255,0), rgba(174,206,255,.75)); animation: rainfall linear infinite; }
+  @keyframes rainfall{ from{ transform: translateY(-14vh);} to{ transform: translateY(114vh);} }
 
-  .cell {
-    background: var(--board);
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8%;
-    transition: transform 0.12s ease, background 0.2s ease;
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
   }
-  .cell:hover:not(.filled) { background: #eef7ff; transform: scale(1.04); }
-  .cell.filled { cursor: default; }
-  .cell svg { width: 100%; height: 100%; animation: pop 0.25s ease; }
-  .cell.win { background: #fff2c2; animation: glow 0.9s ease infinite alternate; }
-
-  @keyframes pop { 0% { transform: scale(0.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-  @keyframes glow {
-    from { box-shadow: inset 0 0 0 0 #ffcf5c; }
-    to   { box-shadow: inset 0 0 0 5px #ffcf5c; }
-  }
-
-  .controls {
-    margin-top: 22px;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  button.btn {
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: bold;
-    color: #fff;
-    background: var(--accent);
-    border: none;
-    border-radius: 999px;
-    padding: 12px 22px;
-    cursor: pointer;
-    box-shadow: 0 4px 0 #1d5d87;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-  }
-  button.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #1d5d87; }
-  button.btn.secondary { background: #5aa6d6; box-shadow: 0 4px 0 #3a7ba6; }
-
-  .scoreboard {
-    display: flex;
-    gap: 28px;
-    margin-top: 24px;
-    background: #fff;
-    border-radius: 16px;
-    padding: 14px 26px;
-    box-shadow: 0 6px 18px var(--shadow);
-  }
-  .score {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    font-weight: bold;
-  }
-  .score svg { width: 44px; height: 44px; }
-  .score .num { font-size: 1.6rem; color: var(--accent); }
 </style>
 </head>
 <body>
-  <h1>Phil's Tic Tac Toe</h1>
-  <p class="subtitle">🐶 You (Labrador) vs the Computer Cat 🐱 — tap a square to play!</p>
+  <div id="sky"></div>
+  <div id="night"></div>
+  <div id="stars">
+    <i style="left:7%;top:9%;animation-duration:2.6s;animation-delay:-.2s"></i>
+    <i style="left:16%;top:22%;animation-duration:3.4s;animation-delay:-1.5s"></i>
+    <i style="left:24%;top:6%;animation-duration:2.1s;animation-delay:-.8s"></i>
+    <i style="left:33%;top:18%;animation-duration:4s;animation-delay:-2.6s"></i>
+    <i style="left:41%;top:8%;animation-duration:2.8s;animation-delay:-.4s"></i>
+    <i style="left:48%;top:25%;animation-duration:3.1s;animation-delay:-1.9s"></i>
+    <i style="left:55%;top:12%;animation-duration:2.4s;animation-delay:-1.1s"></i>
+    <i style="left:62%;top:4%;animation-duration:3.7s;animation-delay:-3s"></i>
+    <i style="left:69%;top:20%;animation-duration:2.2s;animation-delay:-.6s"></i>
+    <i style="left:76%;top:10%;animation-duration:3.3s;animation-delay:-2.2s"></i>
+    <i style="left:83%;top:24%;animation-duration:2.7s;animation-delay:-1.3s"></i>
+    <i style="left:90%;top:7%;animation-duration:4.1s;animation-delay:-.9s"></i>
+    <i style="left:12%;top:30%;animation-duration:3s;animation-delay:-2.8s"></i>
+    <i style="left:30%;top:32%;animation-duration:2.5s;animation-delay:-.5s"></i>
+    <i style="left:58%;top:30%;animation-duration:3.6s;animation-delay:-1.7s"></i>
+    <i style="left:86%;top:32%;animation-duration:2.9s;animation-delay:-2.4s"></i>
+  </div>
+  <div id="snow"></div>
+  <div id="rain"></div>
+  <div id="sun"></div>
+  <div id="moon"></div>
+  <div class="cloud" id="cloud1"></div>
+  <div class="cloud" id="cloud2"></div>
+  <div id="ground"></div>
+  <div id="greenery"></div>
 
-  <div class="status" id="status"></div>
+  <!-- Fish that jumps out of the river and dives back in -->
+  <div id="fish"><svg viewBox="0 0 50 34" overflow="visible">
+    <path d="M4 17 q12 -15 32 -10 q10 3 10 10 q0 7 -10 10 q-20 5 -32 -10 z" fill="#5b656d"/>
+    <path d="M8 19 q12 5 26 4 q0 3 0 4 q-16 3 -26 -4 z" fill="#828c94" opacity=".6"/>
+    <path d="M4 17 l-6 -10 l1 10 l-1 10 z" fill="#434b51"/>
+    <path d="M22 8 q6 -3 11 0" stroke="#434b51" stroke-width="2" fill="none"/>
+    <path d="M30 20 q5 2 9 0" stroke="#434b51" stroke-width="1.6" fill="none"/>
+    <!-- gills -->
+    <path d="M33 9 q-3 8 0 16" stroke="#2f363b" stroke-width="1.8" fill="none"/>
+    <path d="M30 11 q-2 6 0 12" stroke="#2f363b" stroke-width="1.3" fill="none" opacity=".7"/>
+    <circle cx="40" cy="13" r="2.6" fill="#fff"/><circle cx="40.6" cy="13" r="1.3" fill="#111"/>
+  </svg></div>
 
-  <div class="board" id="board"></div>
+  <!-- Tall detailed trees, trunks flush to each page edge -->
+  <div class="jtree l"><svg viewBox="0 0 300 800" preserveAspectRatio="none">
+    <!-- trunk (straight, tapered, flush to the left edge) -->
+    <path d="M150 800 L150 270 Q151 250 170 244 L200 244 Q220 250 221 272 L218 800 Z" fill="#6e4c2c"/>
+    <path d="M150 800 L150 270 Q151 252 168 246 L181 246 L181 800 Z" fill="#5a3d22"/>
+    <g stroke="#4a3119" stroke-width="2.2" fill="none" opacity=".55">
+      <path d="M172 290 V792"/><path d="M192 280 V796"/><path d="M208 300 V780"/>
+    </g>
+    <ellipse cx="197" cy="450" rx="9" ry="15" fill="#5a3d22"/><ellipse cx="197" cy="450" rx="4" ry="8" fill="#43301a"/>
+    <path d="M218 800 L218 742 Q232 772 248 800 Z" fill="#6e4c2c"/>
+    <!-- billowy leaf crown sitting on the trunk top, fuller toward the screen edge -->
+    <g fill="#2e7d36">
+      <circle cx="154" cy="300" r="56"/><circle cx="152" cy="232" r="54"/><circle cx="150" cy="166" r="48"/>
+      <circle cx="176" cy="232" r="62"/><circle cx="228" cy="190" r="82"/><circle cx="288" cy="224" r="66"/>
+      <circle cx="206" cy="276" r="58"/><circle cx="264" cy="278" r="54"/>
+    </g>
+    <g fill="#256b2c" opacity=".8"><circle cx="250" cy="256" r="40"/><circle cx="188" cy="262" r="34"/></g>
+    <g fill="#3a9444" opacity=".55"><circle cx="222" cy="182" r="32"/><circle cx="286" cy="218" r="24"/></g>
+    <g class="snowcap" fill="#f4f8fb"><ellipse cx="162" cy="132" rx="34" ry="18"/><ellipse cx="228" cy="120" rx="58" ry="26"/><ellipse cx="288" cy="164" rx="40" ry="20"/></g>
+    <!-- extended branch; the snake hangs from the middle of it (opposite the owl) -->
+    <path d="M210 452 Q256 442 300 452" stroke="#5e4026" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <g id="snake" class="dayonly">
+      <path d="M256 440 C 264 456 244 466 250 484 C 256 504 238 514 244 536 C 250 558 234 570 238 592 C 241 606 234 612 232 618" fill="none" stroke="#3aa64a" stroke-width="13" stroke-linecap="round"/>
+      <path d="M256 440 C 264 456 244 466 250 484 C 256 504 238 514 244 536" fill="none" stroke="#56c266" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+      <ellipse cx="232" cy="622" rx="13" ry="11" fill="#3aa64a"/>
+      <circle cx="226" cy="617" r="2.6" fill="#fff"/><circle cx="238" cy="617" r="2.6" fill="#fff"/>
+      <circle cx="226" cy="617" r="1.4" fill="#1c2a14"/><circle cx="238" cy="617" r="1.4" fill="#1c2a14"/>
+      <path class="stongue" d="M232 632 L232 645 M232 645 l-4 6 M232 645 l4 6" stroke="#d11e1e" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- POSSUM hangs from the branch at night (replaces the snake, also sways) -->
+    <g id="possum" class="wetnightonly">
+     <g transform="translate(250 452) scale(.5) translate(-250 -452)">
+      <path d="M244 450 q-14 -8 -18 4 q-3 12 12 12" stroke="#b9bec3" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M250 452 q6 -2 6 8" stroke="#b9bec3" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <ellipse cx="256" cy="512" rx="21" ry="44" fill="#8f959b"/>
+      <ellipse cx="256" cy="500" rx="13" ry="30" fill="#c7ccd0"/>
+      <path d="M239 498 q-7 6 -5 16" stroke="#8f959b" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M273 498 q7 6 5 16" stroke="#8f959b" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M238 556 Q256 552 274 556 Q268 586 256 602 Q244 586 238 556 Z" fill="#eef1f3"/>
+      <circle cx="243" cy="556" r="7" fill="#6a7076"/><circle cx="269" cy="556" r="7" fill="#6a7076"/>
+      <circle cx="243" cy="556" r="3.4" fill="#e0a6b4"/><circle cx="269" cy="556" r="3.4" fill="#e0a6b4"/>
+      <circle cx="249" cy="566" r="2.6" fill="#111"/><circle cx="263" cy="566" r="2.6" fill="#111"/>
+      <circle cx="256" cy="598" r="4" fill="#e0a6b4"/>
+     </g>
+    </g>
+  </svg></div>
 
-  <div class="controls">
-    <button class="btn" id="restart">New Round</button>
-    <button class="btn secondary" id="resetScores">Reset Scores</button>
+  <div class="jtree r"><svg viewBox="0 0 300 800" preserveAspectRatio="none">
+    <!-- trunk (straight, tapered, flush to the right edge) -->
+    <path d="M150 800 L150 270 Q149 250 130 244 L100 244 Q80 250 79 272 L82 800 Z" fill="#6e4c2c"/>
+    <path d="M150 800 L150 270 Q149 252 132 246 L119 246 L119 800 Z" fill="#5a3d22"/>
+    <g stroke="#4a3119" stroke-width="2.2" fill="none" opacity=".55">
+      <path d="M128 290 V792"/><path d="M108 280 V796"/><path d="M92 300 V780"/>
+    </g>
+    <ellipse cx="103" cy="450" rx="9" ry="15" fill="#5a3d22"/><ellipse cx="103" cy="450" rx="4" ry="8" fill="#43301a"/>
+    <path d="M82 800 L82 742 Q68 772 52 800 Z" fill="#6e4c2c"/>
+    <!-- billowy leaf crown (fuller toward the screen edge) -->
+    <g fill="#2e7d36">
+      <circle cx="146" cy="300" r="56"/><circle cx="148" cy="232" r="54"/><circle cx="150" cy="166" r="48"/>
+      <circle cx="124" cy="232" r="62"/><circle cx="72" cy="190" r="82"/><circle cx="12" cy="224" r="66"/>
+      <circle cx="94" cy="276" r="58"/><circle cx="36" cy="278" r="54"/>
+    </g>
+    <g fill="#256b2c" opacity=".8"><circle cx="50" cy="256" r="40"/><circle cx="112" cy="262" r="34"/></g>
+    <g fill="#3a9444" opacity=".55"><circle cx="78" cy="180" r="32"/><circle cx="14" cy="216" r="24"/></g>
+    <g class="snowcap" fill="#f4f8fb"><ellipse cx="138" cy="132" rx="34" ry="18"/><ellipse cx="72" cy="120" rx="58" ry="26"/><ellipse cx="12" cy="164" rx="40" ry="20"/></g>
+    <!-- tree hollow (the "hole") with a short branch, owl raised up to it -->
+    <ellipse cx="104" cy="452" rx="15" ry="22" fill="#3a2614"/>
+    <ellipse cx="104" cy="452" rx="10" ry="16" fill="#281a0d"/>
+    <path d="M104 470 Q70 466 34 458" stroke="#5e4026" stroke-width="11" fill="none" stroke-linecap="round"/>
+    <path d="M58 462 q-6 -14 -2 -24" stroke="#5e4026" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <!-- PARROT (day) and OWL (night) share the perch -->
+    <g class="dayonly parrot" id="parrot">
+      <path d="M60 452 q10 12 6 26" stroke="#2f8f3a" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <ellipse cx="50" cy="438" rx="14" ry="18" fill="#2f9e44"/>
+      <path d="M55 430 q12 7 7 23 q-9 -4 -13 -11z" fill="#1f7d34"/>
+      <circle cx="44" cy="424" r="11" fill="#e23b2e"/>
+      <path d="M50 430 a6 6 0 0 1 0 -12 z" fill="#f4c430"/>
+      <g class="peyes"><circle cx="40" cy="421" r="2.6" fill="#fff"/><circle cx="40" cy="421" r="1.3" fill="#111"/></g>
+      <path d="M34 421 q-9 0 -6 6 q5 0 8 -3 z" fill="#3a2a1a"/>
+      <path class="pbeak" d="M33 426 q-7 2 -5 5 q4 0 7 -3 z" fill="#2a1e12"/>
+      <path d="M46 456 l0 6 M52 456 l0 6" stroke="#caa23a" stroke-width="2"/>
+    </g>
+    <g class="wetnightonly owl">
+      <path d="M37 426 l3 -12 l7 9 z" fill="#7a4e2c"/><path d="M63 426 l-3 -12 l-7 9 z" fill="#7a4e2c"/>
+      <ellipse cx="50" cy="434" rx="18" ry="21" fill="#8a5a33"/>
+      <ellipse cx="50" cy="438" rx="11" ry="14" fill="#c79a64"/>
+      <circle cx="42" cy="427" r="9" fill="#fff"/><circle cx="58" cy="427" r="9" fill="#fff"/>
+      <circle cx="42" cy="427" r="5" fill="#f5a623"/><circle cx="58" cy="427" r="5" fill="#f5a623"/>
+      <g class="owlpupils"><circle cx="42" cy="427" r="2.4" fill="#111"/><circle cx="58" cy="427" r="2.4" fill="#111"/></g>
+      <path d="M47 432 L53 432 L50 438 Z" fill="#e08a2a"/>
+      <path class="owlmouth" d="M47.5 438 L52.5 438 L50 444 Z" fill="#a85610"/>
+      <path d="M44 453 l0 6 M50 453 l0 6 M56 453 l0 6" stroke="#e08a2a" stroke-width="2"/>
+    </g>
+    <!-- SPIDER WEB in this tree's fork at night; web grows with the moon, spider circles -->
+    <g class="wetnightonly web">
+     <g class="webwrap">
+      <g stroke="#cfd6da" stroke-width="1.2" fill="none" opacity=".8">
+        <path d="M108 508 L88 466"/><path d="M108 508 L128 470"/><path d="M108 508 L140 486"/>
+        <path d="M108 508 L146 508"/><path d="M108 508 L136 552"/><path d="M108 508 L104 556"/><path d="M108 508 L76 530"/>
+        <path d="M106 478 L130 484 L138 506 L130 530 L110 540 L88 530 L82 504 L90 484 Z" opacity=".7"/>
+        <path d="M108 492 L126 498 L132 512 L122 526 L104 524 L98 508 Z" opacity=".7"/>
+      </g>
+      <g class="spider">
+        <ellipse cx="110" cy="508" rx="6" ry="7" fill="#26242b"/>
+        <circle cx="110" cy="500" r="3.4" fill="#26242b"/>
+        <g stroke="#26242b" stroke-width="1.6" fill="none" stroke-linecap="round">
+          <path d="M106 504 q-10 -4 -14 -12"/><path d="M106 508 q-12 0 -16 8"/><path d="M106 512 q-10 4 -12 12"/>
+          <path d="M114 504 q10 -4 14 -12"/><path d="M114 508 q12 0 16 8"/><path d="M114 512 q10 4 12 12"/>
+        </g>
+        <circle cx="108" cy="499" r="1" fill="#e0a6b4"/><circle cx="112" cy="499" r="1" fill="#e0a6b4"/>
+      </g>
+     </g>
+    </g>
+  </svg></div>
+
+  <!-- River-swamp flowing up the hill through the middle -->
+  <div id="swamp"><svg viewBox="0 0 200 400" preserveAspectRatio="none">
+   <g transform="matrix(1.15 0 0 1 -15 0)">
+    <!-- winding sky-blue river matching the reference picture (15% wider) -->
+    <path d="M14 400 C 30 330 16 296 46 256 C 72 222 52 188 68 156 C 82 128 64 110 70 84 C 74 58 70 26 74 0 L 98 0 C 104 36 118 64 110 92 C 102 124 150 148 144 186 C 138 224 176 260 178 300 C 180 340 186 372 188 400 Z" fill="#4aa3df" stroke="#8fcb62" stroke-width="5"/>
+    <!-- pale water streaks -->
+    <ellipse cx="84" cy="120" rx="12" ry="4" fill="#7cc8f0" opacity=".8"/>
+    <ellipse cx="96" cy="318" rx="22" ry="6" fill="#7cc8f0" opacity=".6"/>
+    <ellipse cx="142" cy="368" rx="18" ry="6" fill="#3c8fc9" opacity=".5"/>
+    <!-- rock and grass tufts on the left bank -->
+    <g>
+      <path d="M20 192 q-3 -11 -8 -16 M24 192 q0 -13 3 -18 M58 198 q4 -10 9 -13 M54 199 q1 -9 -2 -15" stroke="#2f8a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <g transform="translate(38 196) scale(.5) translate(-38 -196)">
+        <ellipse cx="38" cy="192" rx="17" ry="11" fill="#7e8489"/>
+        <ellipse cx="25" cy="198" rx="9" ry="6" fill="#686e74"/>
+        <path d="M28 186 q10 -6 18 0" stroke="#9aa0a5" stroke-width="2" fill="none"/>
+      </g>
+    </g>
+   </g>
+  </svg></div>
+
+  <!-- curved wooden footbridge; the river flows under the arch -->
+  <div id="bridge"><svg viewBox="0 0 160 72" overflow="visible">
+    <!-- abutments resting on the banks -->
+    <rect x="2" y="46" width="15" height="24" rx="2" fill="#5e4026"/>
+    <rect x="143" y="46" width="15" height="24" rx="2" fill="#5e4026"/>
+    <!-- arched deck -->
+    <path d="M8 50 Q80 8 152 50 L152 58 Q80 20 8 58 Z" fill="#9c6b3a"/>
+    <!-- plank lines across the arch -->
+    <g stroke="#74502a" stroke-width="1.6">
+      <line x1="32" y1="44" x2="32" y2="52"/><line x1="54" y1="33" x2="54" y2="41"/>
+      <line x1="80" y1="28" x2="80" y2="36"/><line x1="106" y1="33" x2="106" y2="41"/>
+      <line x1="128" y1="44" x2="128" y2="52"/>
+    </g>
+    <!-- curved hand rail + posts -->
+    <path d="M12 46 Q80 6 148 46" stroke="#8a5e30" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <g stroke="#8a5e30" stroke-width="3.5" stroke-linecap="round">
+      <line x1="22" y1="47" x2="24" y2="31"/><line x1="50" y1="35" x2="51" y2="20"/>
+      <line x1="80" y1="31" x2="80" y2="15"/><line x1="110" y1="35" x2="109" y2="20"/>
+      <line x1="138" y1="47" x2="136" y2="31"/>
+    </g>
+  </svg></div>
+
+  <!-- Hippo in the river bend, drawn to match the reference picture -->
+  <div class="animal" id="hippo"><svg viewBox="0 0 140 104" overflow="visible">
+    <!-- ripple ring at the waterline -->
+    <ellipse cx="70" cy="92" rx="62" ry="8" fill="none" stroke="#cfeafc" stroke-width="3" opacity=".8"/>
+    <!-- paws resting on the water -->
+    <ellipse cx="30" cy="88" rx="13" ry="9" fill="#98a1a9"/>
+    <ellipse cx="110" cy="88" rx="13" ry="9" fill="#98a1a9"/>
+    <!-- ears -->
+    <circle cx="44" cy="16" r="10" fill="#98a1a9"/><circle cx="44" cy="16" r="5" fill="#79828a"/>
+    <circle cx="96" cy="16" r="10" fill="#98a1a9"/><circle cx="96" cy="16" r="5" fill="#79828a"/>
+    <!-- round head -->
+    <path d="M26 58 Q24 18 70 16 Q116 18 114 58 L26 58 Z" fill="#98a1a9"/>
+    <!-- wide muzzle -->
+    <ellipse cx="70" cy="66" rx="46" ry="26" fill="#a6afb6"/>
+    <!-- eyes (whites fixed, pupils glance around) -->
+    <circle cx="56" cy="38" r="10" fill="#fff"/><circle cx="84" cy="38" r="10" fill="#fff"/>
+    <g class="eyes"><circle cx="57" cy="40" r="4.6" fill="#23282c"/><circle cx="85" cy="40" r="4.6" fill="#23282c"/></g>
+    <!-- oval nostrils -->
+    <ellipse cx="56" cy="62" rx="5" ry="7" fill="#454c52"/><ellipse cx="84" cy="62" rx="5" ry="7" fill="#454c52"/>
+    <!-- gentle smile -->
+    <path d="M50 78 Q70 88 90 78" stroke="#454c52" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </svg></div>
+
+  <!-- Crocodile at the bottom, drawn to match the reference picture; only the upper jaw opens -->
+  <div class="animal" id="croc"><svg viewBox="0 0 200 104" overflow="visible">
+    <!-- ripple at the waterline -->
+    <ellipse cx="100" cy="96" rx="88" ry="7" fill="#7cc8f0" opacity=".5"/>
+    <!-- scaly tail to the left -->
+    <path d="M6 88 Q20 64 48 66 Q66 68 74 84 Q40 96 6 88 Z" fill="#4e8c3a"/>
+    <g fill="#3f7530"><path d="M14 72 l7 -12 l7 12 z"/><path d="M30 68 l7 -12 l7 12 z"/><path d="M46 68 l7 -11 l7 11 z"/></g>
+    <!-- body hump -->
+    <path d="M58 88 Q60 64 88 62 Q112 62 116 84 Q88 94 58 88 Z" fill="#5d9a45"/>
+    <!-- lower jaw (STAYS STILL) -->
+    <path d="M86 75 L190 73 Q194 79 178 84 Q132 92 94 84 Q86 80 86 75 Z" fill="#5d9a45"/>
+    <!-- red mouth interior (revealed when the upper jaw lifts) -->
+    <path d="M86 69 L192 68 L190 74 L86 75 Z" fill="#7a2030"/>
+    <!-- big white zigzag teeth along the mouth line -->
+    <path d="M88 70 l7 8 l7 -8 l7 8 l7 -8 l7 8 l7 -8 l7 8 l7 -8 l7 8 l7 -8 l7 8 l7 -8 l7 8 l7 -8 L190 70 Z" fill="#ffffff"/>
+    <!-- UPPER jaw with bulgy eyes on top -->
+    <g class="upperjaw">
+      <path d="M88 70 Q86 52 108 48 L150 50 Q186 52 194 64 Q196 69 190 70 Z" fill="#6aa84f"/>
+      <ellipse cx="184" cy="58" rx="4" ry="3" fill="#3f7530"/>
+      <ellipse cx="184" cy="58" rx="1.8" ry="1.3" fill="#2c5226"/>
+      <g class="eyes">
+        <circle cx="104" cy="40" r="14" fill="#6aa84f"/><circle cx="130" cy="40" r="14" fill="#6aa84f"/>
+        <circle cx="104" cy="38" r="9.5" fill="#fff"/><circle cx="130" cy="38" r="9.5" fill="#fff"/>
+        <circle cx="106" cy="40" r="4.6" fill="#1a2a12"/><circle cx="132" cy="40" r="4.6" fill="#1a2a12"/>
+      </g>
+      <g class="crocsleep">
+        <circle cx="104" cy="40" r="14" fill="#6aa84f"/><circle cx="130" cy="40" r="14" fill="#6aa84f"/>
+        <path d="M96 41 q8 6 16 0" stroke="#20340f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <path d="M122 41 q8 6 16 0" stroke="#20340f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      </g>
+    </g>
+    <g class="zzz" fill="#eaf2ff" font-family="Arial, sans-serif" font-weight="bold">
+      <text class="z1" x="176" y="34" font-size="13">z</text>
+      <text class="z2" x="186" y="26" font-size="17">z</text>
+      <text class="z3" x="198" y="16" font-size="21">z</text>
+    </g>
+  </svg></div>
+
+  <!-- Frog on a lily pad (night); a turtle basks here by day -->
+  <div class="animal wetnightonly" id="frog"><svg viewBox="0 0 80 72" overflow="visible">
+    <ellipse cx="40" cy="62" rx="36" ry="9" fill="#3f9b54"/>
+    <path d="M40 62 L52 55" stroke="#2f7a3f" stroke-width="2"/>
+    <ellipse cx="40" cy="48" rx="28" ry="13" fill="#4aa83c"/>
+    <ellipse cx="16" cy="54" rx="9" ry="5" fill="#3f9433"/><ellipse cx="64" cy="54" rx="9" ry="5" fill="#3f9433"/>
+    <ellipse cx="40" cy="34" rx="24" ry="17" fill="#62cc50"/>
+    <g class="eyes">
+      <circle cx="27" cy="18" r="9" fill="#62cc50"/><circle cx="53" cy="18" r="9" fill="#62cc50"/>
+      <circle cx="27" cy="17" r="5" fill="#fff"/><circle cx="53" cy="17" r="5" fill="#fff"/>
+      <circle cx="28" cy="18" r="2.4" fill="#111"/><circle cx="54" cy="18" r="2.4" fill="#111"/>
+    </g>
+    <path class="openmouth" d="M22 38 Q40 36 58 38 Q40 52 22 38 Z" fill="#c23f5a"/>
+    <path d="M22 38 Q40 46 58 38" stroke="#2f7a26" stroke-width="2.5" fill="none"/>
+  </svg></div>
+
+  <!-- Turtle basking by day (replaced by the frog at night) -->
+  <div class="animal dayonly" id="turtle"><svg viewBox="0 0 90 60" overflow="visible">
+    <ellipse cx="45" cy="53" rx="40" ry="8" fill="#3f9b54"/>
+    <ellipse cx="66" cy="46" rx="8" ry="5" fill="#5aa84a"/>
+    <rect class="tneck" x="6" y="35" width="18" height="8" rx="4" fill="#5aa84a"/>
+    <path d="M18 46 Q22 20 45 18 Q68 20 72 46 Z" fill="#5e8f3e"/>
+    <path d="M20 46 Q45 54 70 46 Z" fill="#7bb356"/>
+    <g stroke="#456b2c" stroke-width="1.6" fill="none">
+      <path d="M45 20 V46"/><path d="M31 26 L34 46"/><path d="M59 26 L56 46"/><path d="M24 36 H66"/>
+    </g>
+    <ellipse cx="24" cy="47" rx="8" ry="5" fill="#5aa84a"/>
+    <g class="thead">
+      <circle cx="16" cy="39" r="8" fill="#5aa84a"/>
+      <g class="eyes"><circle cx="13" cy="37" r="1.6" fill="#111"/></g>
+      <path d="M9 41 q3 2 6 0" stroke="#3f7a2e" stroke-width="1.2" fill="none"/>
+    </g>
+  </svg></div>
+
+  <!-- Walrus in the water on snowy nights (instead of the hippo) -->
+  <div class="animal snowonly" id="walrus"><svg viewBox="0 0 140 100" overflow="visible">
+    <ellipse cx="70" cy="88" rx="60" ry="10" fill="none" stroke="#cfeafc" stroke-width="3" opacity=".7"/>
+    <ellipse cx="30" cy="82" rx="14" ry="8" fill="#9a7f6a"/><ellipse cx="110" cy="82" rx="14" ry="8" fill="#9a7f6a"/>
+    <ellipse cx="70" cy="54" rx="46" ry="34" fill="#a98a72"/>
+    <ellipse cx="70" cy="66" rx="34" ry="24" fill="#c2a389"/>
+    <g class="eyes"><circle cx="54" cy="40" r="4" fill="#2a1f16"/><circle cx="86" cy="40" r="4" fill="#2a1f16"/></g>
+    <ellipse cx="64" cy="60" rx="3" ry="4" fill="#6b5647"/><ellipse cx="76" cy="60" rx="3" ry="4" fill="#6b5647"/>
+    <path d="M62 74 q-2 18 -5 24" stroke="#f2ead6" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M78 74 q2 18 5 24" stroke="#f2ead6" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <g stroke="#6b5647" stroke-width="1" fill="none" opacity=".7">
+      <path d="M60 66 q-14 2 -22 6"/><path d="M60 70 q-14 4 -20 9"/>
+      <path d="M80 66 q14 2 22 6"/><path d="M80 70 q14 4 20 9"/>
+    </g>
+  </svg></div>
+
+  <!-- Penguin on the bank on snowy nights -->
+  <div class="animal snowonly" id="penguin"><svg viewBox="0 0 60 92" overflow="visible">
+    <path d="M22 84 l-6 6 l11 0 z" fill="#e8952a"/><path d="M38 84 l6 6 l-11 0 z" fill="#e8952a"/>
+    <ellipse cx="30" cy="52" rx="22" ry="30" fill="#2b2b30"/>
+    <ellipse cx="30" cy="56" rx="14" ry="24" fill="#f3f3f0"/>
+    <path d="M9 46 q-5 16 3 26" stroke="#2b2b30" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M51 46 q5 16 -3 26" stroke="#2b2b30" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="30" cy="22" r="15" fill="#2b2b30"/>
+    <path d="M18 24 a13 13 0 0 0 24 0 q-12 8 -24 0 z" fill="#f3f3f0"/>
+    <circle cx="25" cy="20" r="2" fill="#fff"/><circle cx="35" cy="20" r="2" fill="#fff"/>
+    <circle cx="25" cy="20" r="1" fill="#111"/><circle cx="35" cy="20" r="1" fill="#111"/>
+    <path d="M27 26 l6 0 l-3 5 z" fill="#e8952a"/>
+  </svg></div>
+
+  <!-- Seal lounging on the bank on snowy nights -->
+  <div class="animal snowonly" id="seal"><svg viewBox="0 0 120 60" overflow="visible">
+    <path d="M10 46 Q30 30 70 36 Q104 40 112 24 Q116 34 108 44 Q70 56 30 54 Q14 54 10 46 Z" fill="#8b95a0"/>
+    <ellipse cx="46" cy="48" rx="34" ry="10" fill="#9ba5b0"/>
+    <g fill="#6f7883"><circle cx="40" cy="42" r="2"/><circle cx="52" cy="46" r="2"/><circle cx="64" cy="42" r="2"/><circle cx="30" cy="46" r="2"/></g>
+    <path d="M108 24 q10 -4 14 4 q-6 6 -14 4 z" fill="#7f8892"/>
+    <path d="M40 50 q6 8 2 14" stroke="#7f8892" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="16" cy="34" r="13" fill="#8b95a0"/>
+    <g class="eyes"><circle cx="12" cy="31" r="2.4" fill="#141414"/><circle cx="21" cy="31" r="2.4" fill="#141414"/></g>
+    <circle cx="8" cy="37" r="2.4" fill="#3a3f45"/>
+    <g stroke="#5f676f" stroke-width="1" opacity=".7" fill="none"><path d="M8 38 q-6 1 -10 3"/><path d="M8 40 q-6 2 -9 5"/></g>
+  </svg></div>
+
+  <!-- Moose visits the river on snowy nights (instead of the wolf/tiger) -->
+  <div id="moose"><svg class="tbody" viewBox="0 0 120 112" overflow="visible">
+    <rect x="86" y="70" width="7" height="34" fill="#5a4632"/>
+    <rect x="70" y="70" width="7" height="34" fill="#4d3b28"/>
+    <rect x="38" y="70" width="7" height="34" fill="#5a4632"/>
+    <rect x="24" y="70" width="7" height="34" fill="#4d3b28"/>
+    <ellipse cx="58" cy="58" rx="38" ry="20" fill="#6b5238"/>
+    <path d="M40 42 Q28 40 24 56 Q32 52 40 54 Z" fill="#6b5238"/>
+    <path d="M28 52 Q16 46 14 34 L6 34 Q4 48 16 58 Z" fill="#6b5238"/>
+    <ellipse cx="10" cy="30" rx="12" ry="9" fill="#6b5238"/>
+    <ellipse cx="2" cy="34" rx="7" ry="6" fill="#5a4632"/>
+    <ellipse cx="16" cy="22" rx="4" ry="6" fill="#5a4632"/>
+    <path d="M14 20 Q28 2 42 6 Q34 0 28 -2 Q24 2 14 10 Z" fill="#cdb891"/>
+    <path d="M10 20 Q-4 2 -18 6 Q-10 0 -4 -2 Q0 2 10 10 Z" fill="#cdb891"/>
+    <g class="eyes"><circle cx="8" cy="27" r="1.8" fill="#111"/></g>
+    <path d="M16 40 q-2 8 2 12" stroke="#5a4632" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M36 40 q22 -6 44 2" stroke="#eef3f7" stroke-width="3" fill="none" opacity=".8"/>
+  </svg></div>
+
+  <!-- Eagle that flies across the sky left-to-right -->
+  <div id="eagle"><svg viewBox="0 0 110 64" overflow="visible">
+    <path d="M22 32 L4 26 L7 40 Z" fill="#5a3d22"/>
+    <ellipse cx="50" cy="32" rx="28" ry="9" fill="#6e4c2c"/>
+    <circle cx="82" cy="30" r="9" fill="#f4f1ea"/>
+    <circle cx="84" cy="28" r="2.2" fill="#fff"/><circle cx="85" cy="28" r="1.1" fill="#111"/>
+    <path d="M90 30 l12 -2 l-11 5 z" fill="#e6a91e"/>
+    <g class="ewing"><path d="M44 30 Q50 0 70 6 Q56 16 56 30 Z" fill="#5a3d22"/></g>
+    <g class="ewing2"><path d="M44 34 Q50 64 70 58 Q56 48 56 34 Z" fill="#4a3119"/></g>
+  </svg></div>
+
+  <!-- Bat that flies across the night sky -->
+  <div id="bat"><svg viewBox="0 0 90 50" overflow="visible">
+    <circle cx="45" cy="16" r="7" fill="#2b2433"/>
+    <path d="M40 11 l-4 -8 l8 4 z" fill="#2b2433"/><path d="M50 11 l4 -8 l-8 4 z" fill="#2b2433"/>
+    <ellipse cx="45" cy="28" rx="9" ry="12" fill="#2b2433"/>
+    <circle cx="42" cy="15" r="1.5" fill="#ffd23f"/><circle cx="48" cy="15" r="1.5" fill="#ffd23f"/>
+    <g class="bwing"><path d="M40 24 Q14 8 2 26 Q16 26 20 34 Q12 30 40 33 Z" fill="#37304a"/></g>
+    <g class="bwing2"><path d="M50 24 Q76 8 88 26 Q74 26 70 34 Q78 30 50 33 Z" fill="#37304a"/></g>
+  </svg></div>
+
+  <!-- Snowy owl flies across the sky on snowy nights -->
+  <div id="snowowl"><svg viewBox="0 0 110 64" overflow="visible">
+    <ellipse cx="52" cy="34" rx="24" ry="14" fill="#f4f6fa"/>
+    <g fill="#d7dde6"><circle cx="46" cy="32" r="1.5"/><circle cx="56" cy="38" r="1.5"/><circle cx="40" cy="38" r="1.5"/><circle cx="60" cy="30" r="1.5"/></g>
+    <circle cx="80" cy="30" r="13" fill="#f4f6fa"/>
+    <circle cx="75" cy="29" r="4.5" fill="#fff"/><circle cx="86" cy="29" r="4.5" fill="#fff"/>
+    <circle cx="75" cy="29" r="2.2" fill="#f5a623"/><circle cx="86" cy="29" r="2.2" fill="#f5a623"/>
+    <circle cx="75" cy="29" r="1" fill="#111"/><circle cx="86" cy="29" r="1" fill="#111"/>
+    <path d="M80 32 l4 0 l-2 4 z" fill="#e6a91e"/>
+    <g class="ewing"><path d="M44 30 Q50 2 72 8 Q58 16 56 30 Z" fill="#e7ecf3"/></g>
+    <g class="ewing2"><path d="M44 34 Q50 62 72 56 Q58 48 56 34 Z" fill="#dbe2ec"/></g>
+  </svg></div>
+
+  <!-- Tiger that walks out to the river, sits, and leaves -->
+  <div id="tiger"><svg class="tbody" viewBox="0 0 150 96" overflow="visible">
+    <path d="M120 56 q24 -4 18 -28" stroke="#ef9230" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M136 30 q5 -7 2 -14" stroke="#3a2a1a" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <rect x="98" y="62" width="13" height="24" rx="5" fill="#e2841f"/>
+    <rect x="42" y="62" width="13" height="24" rx="5" fill="#e2841f"/>
+    <ellipse cx="80" cy="56" rx="46" ry="27" fill="#ef9230"/>
+    <ellipse cx="76" cy="65" rx="35" ry="16" fill="#f7dcb6"/>
+    <g stroke="#3a2a1a" stroke-width="4" fill="none" stroke-linecap="round">
+      <path d="M66 34 q2 11 0 20"/><path d="M80 32 q2 11 0 22"/><path d="M94 34 q2 11 0 20"/><path d="M106 38 q2 9 0 17"/>
+    </g>
+    <circle cx="36" cy="46" r="23" fill="#ef9230"/>
+    <circle cx="22" cy="27" r="8" fill="#ef9230"/><circle cx="50" cy="27" r="8" fill="#ef9230"/>
+    <circle cx="22" cy="27" r="3.4" fill="#3a2a1a"/><circle cx="50" cy="27" r="3.4" fill="#3a2a1a"/>
+    <ellipse cx="32" cy="50" rx="17" ry="14" fill="#f7dcb6"/>
+    <g class="eyes"><circle cx="27" cy="42" r="3.2" fill="#1a140e"/><circle cx="43" cy="42" r="3.2" fill="#1a140e"/></g>
+    <path d="M31 50 l5 0 l-2.5 3.5 z" fill="#3a2a1a"/>
+    <path d="M33.5 53 q-5 4 -9 2 M33.5 53 q5 4 9 2" stroke="#3a2a1a" stroke-width="1.6" fill="none"/>
+    <g stroke="#3a2a1a" stroke-width="3" fill="none" stroke-linecap="round"><path d="M36 25 v7"/><path d="M25 30 l3 6"/><path d="M47 30 l-3 6"/></g>
+  </svg></div>
+
+  <!-- Wolf that visits the river on clear/rain nights -->
+  <div id="wolf"><svg class="tbody" viewBox="0 0 150 96" overflow="visible">
+    <!-- bushy tail -->
+    <path d="M118 56 Q142 50 146 30 Q152 42 145 56 Q139 72 118 70 Z" fill="#6f767e"/>
+    <!-- hind legs -->
+    <path d="M104 64 L100 90 L110 90 L112 66 Z" fill="#727982"/>
+    <path d="M96 66 L94 90 L103 90 L104 68 Z" fill="#838a92"/>
+    <!-- body -->
+    <path d="M36 52 Q64 38 100 46 Q122 51 122 66 Q120 80 92 80 Q54 80 36 66 Z" fill="#838a92"/>
+    <!-- belly -->
+    <path d="M44 66 Q66 76 96 74 Q90 80 70 80 Q50 80 44 66 Z" fill="#b0b6bd"/>
+    <!-- fore legs -->
+    <path d="M60 66 L56 90 L66 90 L67 68 Z" fill="#727982"/>
+    <path d="M50 66 L48 90 L57 90 L58 68 Z" fill="#838a92"/>
+    <!-- neck + head -->
+    <path d="M42 54 Q30 46 28 32 L48 32 Q50 46 54 58 Z" fill="#838a92"/>
+    <circle cx="30" cy="32" r="14" fill="#838a92"/>
+    <!-- pointed snout -->
+    <path d="M28 34 L6 39 L9 46 L30 44 Z" fill="#9aa1a9"/>
+    <circle cx="7" cy="40" r="2.6" fill="#26292d"/>
+    <path d="M11 46 q7 2 15 0" stroke="#565c64" stroke-width="1.4" fill="none"/>
+    <!-- pointed ears -->
+    <path d="M22 20 L18 6 L31 15 Z" fill="#6f767e"/>
+    <path d="M36 19 L44 8 L45 20 Z" fill="#6f767e"/>
+    <path d="M23 19 L21 10 L28 15 Z" fill="#4f555d"/>
+    <!-- eye -->
+    <g class="eyes"><circle cx="26" cy="30" r="2.4" fill="#141414"/></g>
+  </svg></div>
+
+  <div class="stumpwrap left" id="stumpL"></div>
+  <div class="stumpwrap right" id="stumpR"></div>
+
+  <div id="game">
+    <div id="bar">
+      <h1>🐒 Monkey Solitaire</h1>
+      <div class="btns">
+        <button class="ui" id="finishBtn">Finish</button>
+        <button class="ui" id="muteBtn">🔊</button>
+        <button class="ui" id="newBtn">New Deal</button>
+      </div>
+    </div>
+    <div id="table">
+      <div class="row" id="topRow"></div>
+      <div class="row" id="tableau"></div>
+    </div>
   </div>
 
-  <div class="scoreboard">
-    <div class="score">
-      <span id="dogIcon"></span>
-      <span class="num" id="dogScore">0</span>
-    </div>
-    <div class="score">
-      <span style="font-size:1.6rem; align-self:center;">🤝</span>
-      <span class="num" id="drawScore">0</span>
-    </div>
-    <div class="score">
-      <span id="catIcon"></span>
-      <span class="num" id="catScore">0</span>
+  <div id="crowd"></div>
+  <div id="confetti"></div>
+  <div id="balloons"></div>
+  <div id="fireworks"></div>
+  <div id="win">
+    <div class="panel">
+      <h2>🎉 You Win! 🎉</h2>
+      <p>The whole jungle is going bananas for you!</p>
+      <button class="ui" id="winNew">Play Again</button>
     </div>
   </div>
+  <div id="toast"></div>
 
 <script>
-  // ---- Cartoon SVG faces ----------------------------------------------------
-  const dogSVG = `
-  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Smiling Labrador">
-    <!-- ears -->
-    <ellipse cx="22" cy="48" rx="13" ry="26" fill="#b07a3c"/>
-    <ellipse cx="78" cy="48" rx="13" ry="26" fill="#b07a3c"/>
+/* ============================================================
+   0. Constants & helpers
+   ============================================================ */
+const SUITS = ['♠','♥','♦','♣']; // spades hearts diamonds clubs
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const isRed = s => (s===1 || s===2);
+const color = s => isRed(s) ? 'red' : 'black';
+// card code 0..51 : rank = code/4 (0=A..12=K), suit = code%4
+const cRank = c => (c/4)|0;
+const cSuit = c => c%4;
+
+const WINNABLE_RATIO = 0.85; // ~80%+ realised win-feel; rest are random deals
+const SOLVE_NODES = 26000;   // per-attempt search budget (favours easy, winnable deals)
+const SOLVE_TRIES = 60;      // shuffles to try before falling back to random
+
+/* ============================================================
+   1. Game state (object cards for play; ints for the solver)
+   ============================================================ */
+// play card: {code, r, s, up}
+function mkCard(code){ return {code, r:cRank(code), s:cSuit(code), up:false}; }
+
+let state = null;     // {stock, waste, foundations[4], tableau[7]}
+let sel = null;       // selection {loc, i}
+let busy = false;     // input guard during deal/win
+let lastTap = {loc:null, i:-1, t:0};
+
+function freshDeck(){
+  const d = []; for(let i=0;i<52;i++) d.push(i);
+  for(let i=d.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [d[i],d[j]]=[d[j],d[i]]; }
+  return d;
+}
+
+// Deal an int deck into a play-state. col k gets k+1 cards, last face up.
+function dealToState(deck){
+  const st = {stock:[], waste:[], foundations:[[],[],[],[]], tableau:[[],[],[],[],[],[],[]]};
+  let idx=0;
+  for(let col=0; col<7; col++){
+    for(let j=0;j<=col;j++){
+      const card = mkCard(deck[idx++]);
+      card.up = (j===col);
+      st.tableau[col].push(card);
+    }
+  }
+  while(idx<52){ const card=mkCard(deck[idx++]); card.up=false; st.stock.push(card); }
+  return st;
+}
+
+/* ============================================================
+   2. Rules
+   ============================================================ */
+function topOf(pile){ return pile.length ? pile[pile.length-1] : null; }
+
+function canStackTab(card, col){
+  const t = state.tableau[col];
+  if(t.length===0) return card.r===12;          // only King on empty
+  const top = t[t.length-1];
+  return top.up && color(card.s)!==color(top.s) && card.r===top.r-1;
+}
+function canToFoundation(card){
+  const f = state.foundations[card.s];
+  if(f.length===0) return card.r===0;            // Ace
+  return f[f.length-1].r === card.r-1;
+}
+// movable run from tableau col starting at index i (must be face-up valid run)
+function movableRun(col, i){
+  const t = state.tableau[col];
+  if(i<0 || i>=t.length || !t[i].up) return null;
+  return t.slice(i);
+}
+
+function flipExposed(col){
+  const t = state.tableau[col];
+  if(t.length && !t[t.length-1].up){ t[t.length-1].up = true; sndFlipless(); encourage(); }
+}
+
+/* ============================================================
+   3. Moves (all mutate `state`, play sounds, no undo/history)
+   ============================================================ */
+function drawThree(){
+  if(state.stock.length===0){
+    if(state.waste.length===0) return;
+    while(state.waste.length){ const c=state.waste.pop(); c.up=false; state.stock.push(c); }
+    sndDraw();
+    return;
+  }
+  for(let k=0;k<3 && state.stock.length;k++){
+    const c = state.stock.pop(); c.up=true; state.waste.push(c);
+  }
+  sndDraw();
+}
+
+function moveStackToTab(cards, srcLoc, targetCol){
+  // remove from source
+  if(srcLoc.loc==='waste'){ state.waste.pop(); }
+  else if(srcLoc.loc[0]==='t'){ const c=+srcLoc.loc.slice(1); state.tableau[c].splice(srcLoc.i); }
+  else if(srcLoc.loc[0]==='f'){ state.foundations[+srcLoc.loc.slice(1)].pop(); }
+  cards.forEach(c=>state.tableau[targetCol].push(c));
+  if(srcLoc.loc[0]==='t') flipExposed(+srcLoc.loc.slice(1));
+  sndPlace();
+  if(cards.length>1) encourage();
+}
+function moveToFoundation(card, srcLoc){
+  if(srcLoc.loc==='waste'){ state.waste.pop(); }
+  else if(srcLoc.loc[0]==='t'){ state.tableau[+srcLoc.loc.slice(1)].pop(); }
+  state.foundations[card.s].push(card);
+  if(srcLoc.loc[0]==='t') flipExposed(+srcLoc.loc.slice(1));
+  sndFoundation();
+  encourage();
+}
+function isWin(){ return state.foundations.reduce((a,f)=>a+f.length,0)===52; }
+function noFaceDown(){ return state.tableau.every(t=>t.every(c=>c.up)); }
+
+/* ============================================================
+   4. Selection + input (tap to select, tap to place)
+   ============================================================ */
+function clearSel(){ sel=null; }
+function selectedCards(){
+  if(!sel) return null;
+  if(sel.loc==='waste'){ const c=topOf(state.waste); return c?[c]:null; }
+  if(sel.loc[0]==='f'){ const c=topOf(state.foundations[+sel.loc.slice(1)]); return c?[c]:null; }
+  if(sel.loc[0]==='t'){ return movableRun(+sel.loc.slice(1), sel.i); }
+  return null;
+}
+
+function autoToFoundation(loc, i){
+  // returns true if a card was sent home
+  let card=null, src=null;
+  if(loc==='waste'){ card=topOf(state.waste); src={loc:'waste',i:0}; }
+  else if(loc[0]==='t'){ const col=+loc.slice(1); const t=state.tableau[col];
+    if(i===t.length-1 && t[i] && t[i].up){ card=t[i]; src={loc,i}; } }
+  if(card && canToFoundation(card)){ moveToFoundation(card, src); return true; }
+  return false;
+}
+
+function handleTap(el){
+  if(busy) return;
+  if(!el){ clearSel(); render(); return; }
+  const loc = el.dataset.loc;
+  const i = el.dataset.i!==undefined ? +el.dataset.i : -1;
+
+  // stock: draw / recycle
+  if(loc==='stock'){ clearSel(); drawThree(); render(); return; }
+
+  // double-tap -> send home
+  const now = Date.now();
+  const dbl = (loc===lastTap.loc && i===lastTap.i && now-lastTap.t < 320);
+  lastTap = {loc, i, t:now};
+  if(dbl){
+    if(autoToFoundation(loc, i)){ clearSel(); afterMove(); return; }
+  }
+
+  if(!sel){
+    // make a selection
+    if(loc==='waste' && state.waste.length){ sel={loc,i:0}; }
+    else if(loc[0]==='t'){
+      const col=+loc.slice(1);
+      if(i>=0 && state.tableau[col][i] && state.tableau[col][i].up) sel={loc, i};
+    }
+    else if(loc[0]==='f' && state.foundations[+loc.slice(1)].length){ sel={loc,i:0}; }
+    render(); return;
+  }
+
+  // we have a selection -> attempt move to destination
+  const cards = selectedCards();
+  if(!cards){ clearSel(); render(); return; }
+
+  // tapped same selection -> deselect
+  if(loc===sel.loc){ clearSel(); render(); return; }
+
+  let moved=false;
+  if(loc[0]==='f'){
+    if(cards.length===1 && canToFoundation(cards[0])){ moveToFoundation(cards[0], sel); moved=true; }
+  } else if(loc[0]==='t'){
+    const col=+loc.slice(1);
+    if(canStackTab(cards[0], col)){ moveStackToTab(cards, sel, col); moved=true; }
+  }
+
+  if(moved){ clearSel(); afterMove(); }
+  else {
+    // re-target: maybe user picked a new source
+    clearSel();
+    if(loc[0]==='t'){ const col=+loc.slice(1);
+      if(i>=0 && state.tableau[col][i] && state.tableau[col][i].up) sel={loc,i}; }
+    else if(loc==='waste' && state.waste.length){ sel={loc,i:0}; }
+    if(!sel) sndNo();
+    render();
+  }
+}
+
+function afterMove(){
+  render();
+  updateFinishBtn();
+  if(isWin()) doWin();
+}
+
+/* ---- tap to move ---- */
+function onTap(e){ handleTap(e.target.closest('[data-loc]')); }
+
+/* ============================================================
+   5. Auto-finish (only useful once nothing is face-down)
+   ============================================================ */
+function updateFinishBtn(){
+  finishBtn.style.display = (noFaceDown() && !isWin()) ? 'inline-block' : 'none';
+}
+function autoFinish(){
+  if(busy) return; busy=true;
+  const step = ()=>{
+    // try to send any available top card home
+    let did=false;
+    const w = topOf(state.waste);
+    if(w && canToFoundation(w)){ moveToFoundation(w,{loc:'waste',i:0}); did=true; }
+    if(!did){
+      for(let col=0;col<7;col++){ const t=state.tableau[col]; const c=topOf(t);
+        if(c && c.up && canToFoundation(c)){ moveToFoundation(c,{loc:'t'+col,i:t.length-1}); did=true; break; } }
+    }
+    if(!did && state.stock.length){ drawThree(); did=true; }
+    else if(!did && state.waste.length){ drawThree(); did=true; } // recycle
+    render();
+    if(isWin()){ busy=false; doWin(); return; }
+    if(did){ setTimeout(step, 110); }
+    else { busy=false; updateFinishBtn(); } // stuck (shouldn't happen on solvable end)
+  };
+  step();
+}
+
+/* ============================================================
+   6. Rendering
+   ============================================================ */
+function sizeCards(){
+  const tableW = Math.min(window.innerWidth, 480);
+  const pad=5, gap=4;
+  const cw = Math.floor((tableW - 2*pad - 6*gap) / 7);
+  const ch = Math.round(cw*1.4);
+  document.documentElement.style.setProperty('--card-w', cw+'px');
+  document.documentElement.style.setProperty('--card-h', ch+'px');
+  return {cw, ch};
+}
+
+function cardHTML(card){
+  if(!card.up) return `<div class="card back"></div>`;
+  return `<div class="card ${color(card.s)}">
+      <div class="corner">${RANKS[card.r]}<small>${SUITS[card.s]}</small></div>
+      <div class="pip">${SUITS[card.s]}</div>
+    </div>`;
+}
+
+function render(){
+  const {ch} = {ch: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--card-h'))};
+  // ----- top row: stock, waste, gap, 4 foundations -----
+  const top = document.getElementById('topRow');
+  let html='';
+  // col1 stock
+  html += `<div class="cell" data-loc="stock">`;
+  if(state.stock.length) html += `<div class="card back"></div>`;
+  else html += `<div class="slot" data-loc="stock">↻</div>`;
+  html += `</div>`;
+  // col2 waste (fan up to 3)
+  html += `<div class="cell" data-loc="waste" style="overflow:visible">`;
+  if(state.waste.length===0){ html += `<div class="slot">·</div>`; }
+  else {
+    const show = state.waste.slice(-3);
+    const fx = Math.round(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--card-w'))*0.34);
+    show.forEach((c,k)=>{ html += `<div style="position:absolute;left:${k*fx}px;top:0">${cardHTML(c)}</div>`; });
+  }
+  html += `</div>`;
+  // col3 spacer
+  html += `<div class="cell"></div>`;
+  // col4-7 foundations
+  for(let s=0;s<4;s++){
+    html += `<div class="cell" data-loc="f${s}">`;
+    const f=state.foundations[s];
+    if(f.length) html += cardHTML(f[f.length-1]);
+    else html += `<div class="slot" data-loc="f${s}">${SUITS[s]}</div>`;
+    html += `</div>`;
+  }
+  top.innerHTML = html;
+
+  // ----- tableau -----
+  const tab = document.getElementById('tableau');
+  let th='';
+  const availH = Math.max(window.innerHeight*0.66, 280);
+  for(let col=0; col<7; col++){
+    const pile = state.tableau[col];
+    th += `<div class="col" data-loc="t${col}" data-i="-1">`;
+    if(pile.length===0){
+      th += `<div class="slot" data-loc="t${col}" data-i="-1"></div>`;
+    } else {
+      // compute offsets, scale down if too tall
+      let upOff=ch*0.32, downOff=ch*0.17;
+      const nDown = pile.filter(c=>!c.up).length;
+      const nUp = pile.length - nDown;
+      let total = ch + Math.max(0,nDown-(nUp>0?0:1))*downOff + (nUp>0?nUp:0)*upOff;
+      // recompute total as cumulative
+      const calcTotal = (uO,dO)=>{ let y=0; for(let k=0;k<pile.length;k++){ if(k>0) y += pile[k-1].up?uO:dO; } return y+ch; };
+      total = calcTotal(upOff,downOff);
+      if(total>availH){ const scale=(availH-ch)/(total-ch); upOff*=scale; downOff*=scale; }
+      let y=0;
+      pile.forEach((c,k)=>{
+        if(k>0) y += pile[k-1].up?upOff:downOff;
+        const seld = sel && sel.loc===('t'+col) && k>=sel.i ? ' sel' : '';
+        th += `<div data-loc="t${col}" data-i="${k}" style="position:absolute;top:${Math.round(y)}px;left:0">`+
+              cardHTML(c).replace('class="card', 'class="card'+seld)+`</div>`;
+      });
+    }
+    th += `</div>`;
+  }
+  tab.innerHTML = th;
+
+  // apply sel outline to waste top / foundation top
+  if(sel){
+    let node=null;
+    if(sel.loc==='waste'){ const cells=top.querySelectorAll('[data-loc="waste"] .card'); node=cells[cells.length-1]; }
+    else if(sel.loc[0]==='f'){ node=top.querySelector(`[data-loc="${sel.loc}"] .card`); }
+    if(node) node.classList.add('sel');
+  }
+}
+
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), 1400);
+}
+
+/* ============================================================
+   7. Winnable-deal generator (solver-backed; easy-biased)
+   ------------------------------------------------------------
+   Random shuffle -> bounded DFS that only makes LEGAL moves.
+   Reaching all 52 on foundations IS the proof of winnability,
+   so there are no false positives. Deals it can't crack within
+   the node budget are reshuffled (this also biases toward
+   easier, more winnable boards -> higher real win rate).
+   ============================================================ */
+function solverState(deck){
+  // piles: array of {c:[codes bottom->top], fd:faceDownCount}
+  const piles=[]; let idx=0;
+  for(let col=0;col<7;col++){ const c=[]; for(let j=0;j<=col;j++) c.push(deck[idx++]); piles.push({c, fd:col}); }
+  const stock=[]; while(idx<52) stock.push(deck[idx++]);
+  return {piles, found:[-1,-1,-1,-1], stock, waste:[]};
+}
+function s_clone(s){
+  return {piles:s.piles.map(p=>({c:p.c.slice(), fd:p.fd})), found:s.found.slice(), stock:s.stock.slice(), waste:s.waste.slice()};
+}
+function s_key(s){
+  let k='';
+  for(const p of s.piles){ k+=p.fd+':'+p.c.join(',')+'|'; }
+  k+='F'+s.found.join(',')+'W'+s.waste.join(',')+'S'+s.stock.join(',');
+  return k;
+}
+function s_autoplay(st){
+  // repeatedly send "safe" cards home (waste top + tableau tops)
+  let moved=true;
+  const safe=(r,suit)=>{ if(r<=1) return true; const opp= isRed(suit)?[0,3]:[1,2];
+    return st.found[opp[0]]>=r-1 && st.found[opp[1]]>=r-1; };
+  while(moved){ moved=false;
+    const w = st.waste[st.waste.length-1];
+    if(w!==undefined){ const r=cRank(w),su=cSuit(w); if(st.found[su]===r-1 && safe(r,su)){ st.found[su]=r; st.waste.pop(); moved=true; continue; } }
+    for(const p of st.piles){ if(p.c.length>p.fd){ const code=p.c[p.c.length-1]; const r=cRank(code),su=cSuit(code);
+      if(st.found[su]===r-1 && safe(r,su)){ st.found[su]=r; p.c.pop(); if(p.c.length===p.fd && p.fd>0) p.fd--; moved=true; break; } } }
+  }
+}
+function s_moves(st){
+  const mv=[];
+  // tableau top -> foundation
+  st.piles.forEach((p,ci)=>{ if(p.c.length>p.fd){ const code=p.c[p.c.length-1]; const r=cRank(code),su=cSuit(code);
+    if(st.found[su]===r-1) mv.push({t:'tf', from:ci}); }});
+  // waste -> foundation
+  if(st.waste.length){ const code=st.waste[st.waste.length-1]; const r=cRank(code),su=cSuit(code);
+    if(st.found[su]===r-1) mv.push({t:'wf'}); }
+  // tableau run -> tableau
+  st.piles.forEach((p,ci)=>{
+    const upStart=p.fd; if(p.c.length===upStart) return;
+    for(let k=upStart;k<p.c.length;k++){
+      const code=p.c[k]; const r=cRank(code),su=cSuit(code);
+      st.piles.forEach((q,cj)=>{ if(ci===cj) return;
+        if(q.c.length===0){ if(r===12 && !(upStart===k && p.fd===0)) mv.push({t:'tt',from:ci,start:k,to:cj}); }
+        else { const tc=q.c[q.c.length-1]; if(q.c.length>q.fd){ const tr=cRank(tc),ts=cSuit(tc);
+          if(color(su)!==color(ts) && r===tr-1) mv.push({t:'tt',from:ci,start:k,to:cj}); } }
+      });
+    }
+  });
+  // waste -> tableau
+  if(st.waste.length){ const code=st.waste[st.waste.length-1]; const r=cRank(code),su=cSuit(code);
+    st.piles.forEach((q,cj)=>{ if(q.c.length===0){ if(r===12) mv.push({t:'wt',to:cj}); }
+      else { const tc=q.c[q.c.length-1]; if(q.c.length>q.fd){ const tr=cRank(tc),ts=cSuit(tc);
+        if(color(su)!==color(ts) && r===tr-1) mv.push({t:'wt',to:cj}); } } }); }
+  // draw / recycle
+  if(st.stock.length) mv.push({t:'draw'});
+  else if(st.waste.length) mv.push({t:'rec'});
+  return mv;
+}
+function s_apply(st, m){
+  if(m.t==='tf'){ const p=st.piles[m.from]; const code=p.c.pop(); st.found[cSuit(code)]=cRank(code); if(p.c.length===p.fd && p.fd>0) p.fd--; }
+  else if(m.t==='wf'){ const code=st.waste.pop(); st.found[cSuit(code)]=cRank(code); }
+  else if(m.t==='tt'){ const p=st.piles[m.from]; const run=p.c.splice(m.start); st.piles[m.to].c.push(...run); if(p.c.length===p.fd && p.fd>0) p.fd--; }
+  else if(m.t==='wt'){ const code=st.waste.pop(); st.piles[m.to].c.push(code); }
+  else if(m.t==='draw'){ for(let k=0;k<3 && st.stock.length;k++) st.waste.push(st.stock.pop()); }
+  else if(m.t==='rec'){ while(st.waste.length) st.stock.push(st.waste.pop()); }
+}
+function isSolvable(deck){
+  const visited=new Set(); let nodes=0; let budget=true;
+  function dfs(st){
+    if(!budget) return false;
+    s_autoplay(st);
+    if(st.found[0]===12 && st.found[1]===12 && st.found[2]===12 && st.found[3]===12) return true;
+    if(++nodes>SOLVE_NODES){ budget=false; return false; }
+    const key=s_key(st); if(visited.has(key)) return false; visited.add(key);
+    const moves=s_moves(st);
+    // order: foundation, run-that-exposes/empties, waste->tab, others, draw, recycle
+    moves.sort((a,b)=>rank(a)-rank(b));
+    function rank(m){ if(m.t==='tf'||m.t==='wf') return 0;
+      if(m.t==='tt'){ const p=st.piles[m.from]; return (m.start===p.fd)?1:3; } // exposing move first
+      if(m.t==='wt') return 2; if(m.t==='draw') return 4; return 5; }
+    for(const m of moves){ const ns=s_clone(st); s_apply(ns,m); if(dfs(ns)) return true; if(!budget) return false; }
+    return false;
+  }
+  return dfs(solverState(deck));
+}
+
+function makeDeck(){
+  const winnable = Math.random() < WINNABLE_RATIO;
+  if(!winnable) return freshDeck();
+  for(let t=0;t<SOLVE_TRIES;t++){ const d=freshDeck(); if(isSolvable(d)) return d; }
+  return freshDeck(); // fallback: random (rare)
+}
+
+/* ============================================================
+   8. New game / win
+   ============================================================ */
+function newGame(){
+  busy=true; clearSel();
+  document.getElementById('win').classList.remove('show');
+  clearCelebration();
+  setMonkeyCheer(false);
+  finishBtn.style.display='none';
+  toast('🍌 Dealing a winnable game…');
+  // defer the (synchronous) winnable-deal search so the scene paints first
+  setTimeout(()=>{
+    const deck = makeDeck();
+    state = dealToState(deck);
+    render(); updateFinishBtn();
+    document.getElementById('toast').classList.remove('show');
+    sndDeal();
+    busy=false;
+  }, 30);
+}
+
+const celebration = { fw:null };
+const CELCOLORS = ['#ff5f6d','#ffd23f','#4aa3df','#5ad15a','#c86bff','#ff9f43','#ff6fae'];
+function clearCelebration(){
+  if(celebration.fw){ clearInterval(celebration.fw); celebration.fw=null; }
+  ['confetti','balloons','fireworks'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  const crowd=document.getElementById('crowd'); if(crowd){ crowd.classList.remove('show'); crowd.innerHTML=''; }
+}
+function fwBurst(f){
+  const cx=10+Math.random()*80, cy=8+Math.random()*44, col=CELCOLORS[(Math.random()*CELCOLORS.length)|0];
+  const N=16, R=54+Math.random()*46;
+  for(let i=0;i<N;i++){ const s=document.createElement('span'); const a=(i/N)*Math.PI*2;
+    s.style.left=cx+'%'; s.style.top=cy+'%'; s.style.background=col;
+    s.style.setProperty('--dx',(Math.cos(a)*R).toFixed(0)+'px'); s.style.setProperty('--dy',(Math.sin(a)*R).toFixed(0)+'px');
+    s.style.animationDuration=(0.9+Math.random()*0.5).toFixed(2)+'s'; f.appendChild(s);
+    setTimeout(()=>s.remove(), 1600); }
+  if(audioUnlocked) sndPop();
+}
+function celebrate(kind){
+  clearCelebration();
+  if(kind==='animals'){
+    const crowd=document.getElementById('crowd');
+    const emo=['🐵','🦜','🐢','🐸','🐊','🦉','🐒','🐧','🦭','🐻‍❄️','🦌','🐟','🐰','🦊'];
+    crowd.innerHTML = emo.map(a=>`<span>${a}</span>`).join(''); crowd.classList.add('show');
+  } else if(kind==='confetti'){
+    const c=document.getElementById('confetti');
+    for(let i=0;i<90;i++){ const p=document.createElement('i');
+      p.style.left=(Math.random()*100).toFixed(1)+'%'; p.style.background=CELCOLORS[(Math.random()*CELCOLORS.length)|0];
+      p.style.width=(6+Math.random()*6).toFixed(0)+'px'; p.style.height=(10+Math.random()*8).toFixed(0)+'px';
+      p.style.opacity=(0.7+Math.random()*0.3).toFixed(2);
+      p.style.animationDuration=(2.4+Math.random()*2.6).toFixed(1)+'s'; p.style.animationDelay=(-Math.random()*3).toFixed(1)+'s';
+      c.appendChild(p); }
+  } else if(kind==='balloons'){
+    const b=document.getElementById('balloons');
+    for(let i=0;i<15;i++){ const el=document.createElement('b');
+      el.style.left=(3+Math.random()*90).toFixed(1)+'%'; el.style.background=CELCOLORS[(Math.random()*CELCOLORS.length)|0];
+      el.style.setProperty('--drift',(Math.random()*60-30).toFixed(0)+'px');
+      const w=(30+Math.random()*20); el.style.width=w.toFixed(0)+'px'; el.style.height=(w*1.28).toFixed(0)+'px';
+      el.style.animationDuration=(5+Math.random()*4).toFixed(1)+'s'; el.style.animationDelay=(-Math.random()*2.5).toFixed(1)+'s';
+      b.appendChild(el); }
+  } else { // fireworks
+    const f=document.getElementById('fireworks'); fwBurst(f); fwBurst(f);
+    let n=0; celebration.fw=setInterval(()=>{ fwBurst(f); if(++n>=12){ clearInterval(celebration.fw); celebration.fw=null; } }, 620);
+  }
+}
+function doWin(){
+  busy=true; clearSel(); render();
+  sndWin(); sndCheer();
+  setMonkeyCheer(true);
+  celebrate(['confetti','balloons','fireworks','animals'][(Math.random()*4)|0]);
+  setTimeout(()=>{ document.getElementById('win').classList.add('show'); busy=false; }, 700);
+}
+
+/* ============================================================
+   9. Monkeys, jokes & scene art
+   ============================================================ */
+const STUMP_SVG = `<svg class="stump" viewBox="0 0 140 120" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="70" cy="110" rx="64" ry="12" fill="rgba(0,0,0,0.18)"/>
+  <path d="M18 50 q-4 50 8 60 h88 q12 -10 8 -60 q-2 -14 -52 -14 q-50 0 -52 14z" fill="#9c6b3a"/>
+  <path d="M18 50 q-2 -12 52 -12 q54 0 52 12 q-4 12 -52 12 q-48 0 -52 -12z" fill="#c89a5c"/>
+  <ellipse cx="70" cy="50" rx="50" ry="11" fill="#d9b07a"/>
+  <ellipse cx="70" cy="50" rx="38" ry="8" fill="none" stroke="#b98e54" stroke-width="2"/>
+  <ellipse cx="70" cy="50" rx="24" ry="5" fill="none" stroke="#b98e54" stroke-width="2"/>
+  <ellipse cx="70" cy="50" rx="11" ry="2.5" fill="none" stroke="#b98e54" stroke-width="2"/>
+  <path d="M30 70 q4 18 6 30 M110 70 q-4 18 -6 30 M70 78 v34" stroke="#7c5328" stroke-width="2.5" fill="none" opacity=".5"/>
+</svg>`;
+
+function monkeySVG(){
+  // a bear (turns into a polar bear on snowy nights via the .fur/.belly classes)
+  return `<svg class="monkey-svg" viewBox="0 0 120 130" width="100%" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="60" cy="124" rx="30" ry="6" fill="rgba(0,0,0,0.15)"/>
+    <!-- arms -->
+    <path class="arm" d="M32 78 q-16 9 -14 26" fill="none" stroke-width="13" stroke-linecap="round"/>
+    <path class="arm" d="M88 78 q16 9 14 26" fill="none" stroke-width="13" stroke-linecap="round"/>
+    <!-- body -->
+    <ellipse class="fur" cx="60" cy="94" rx="28" ry="28"/>
+    <ellipse class="belly" cx="60" cy="98" rx="17" ry="19"/>
+    <!-- feet -->
+    <ellipse class="fur" cx="44" cy="119" rx="11" ry="8"/><ellipse class="fur" cx="76" cy="119" rx="11" ry="8"/>
+    <ellipse class="belly" cx="44" cy="119" rx="5" ry="4"/><ellipse class="belly" cx="76" cy="119" rx="5" ry="4"/>
+    <!-- round ears -->
+    <circle class="fur" cx="34" cy="34" r="13"/><circle class="ie" cx="34" cy="34" r="6"/>
+    <circle class="fur" cx="86" cy="34" r="13"/><circle class="ie" cx="86" cy="34" r="6"/>
     <!-- head -->
-    <circle cx="50" cy="48" r="32" fill="#e0a94e"/>
+    <circle class="fur" cx="60" cy="50" r="30"/>
     <!-- muzzle -->
-    <ellipse cx="50" cy="62" rx="20" ry="16" fill="#f4d39a"/>
+    <ellipse class="belly" cx="60" cy="61" rx="18" ry="14"/>
     <!-- eyes -->
-    <circle cx="38" cy="42" r="5" fill="#3a2a12"/>
-    <circle cx="62" cy="42" r="5" fill="#3a2a12"/>
-    <circle cx="39.5" cy="40.5" r="1.7" fill="#fff"/>
-    <circle cx="63.5" cy="40.5" r="1.7" fill="#fff"/>
-    <!-- nose -->
-    <ellipse cx="50" cy="56" rx="6" ry="4.5" fill="#3a2a12"/>
-    <!-- smiling mouth + tongue -->
-    <path d="M50 60 Q50 70 40 70 Q34 70 34 64" fill="none" stroke="#3a2a12" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M50 60 Q50 70 60 70 Q66 70 66 64" fill="none" stroke="#3a2a12" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M46 68 Q50 80 54 68 Z" fill="#ff8aa0"/>
-  </svg>`;
-
-  const catSVG = `
-  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Smiling Cat">
-    <!-- ears -->
-    <path d="M22 22 L20 50 L42 38 Z" fill="#8a8f98"/>
-    <path d="M78 22 L80 50 L58 38 Z" fill="#8a8f98"/>
-    <path d="M26 28 L25 44 L37 37 Z" fill="#ffb6c1"/>
-    <path d="M74 28 L75 44 L63 37 Z" fill="#ffb6c1"/>
-    <!-- head -->
-    <circle cx="50" cy="52" r="32" fill="#a3a8b2"/>
-    <!-- eyes -->
-    <ellipse cx="38" cy="48" rx="5" ry="6" fill="#3a5a2a"/>
-    <ellipse cx="62" cy="48" rx="5" ry="6" fill="#3a5a2a"/>
-    <ellipse cx="38" cy="48" rx="1.8" ry="4" fill="#1a1a1a"/>
-    <ellipse cx="62" cy="48" rx="1.8" ry="4" fill="#1a1a1a"/>
-    <circle cx="39.5" cy="46" r="1.3" fill="#fff"/>
-    <circle cx="63.5" cy="46" r="1.3" fill="#fff"/>
-    <!-- nose -->
-    <path d="M47 58 L53 58 L50 62 Z" fill="#ff8aa0"/>
-    <!-- smiling mouth -->
-    <path d="M50 62 Q44 68 38 63" fill="none" stroke="#3a2a12" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M50 62 Q56 68 62 63" fill="none" stroke="#3a2a12" stroke-width="2.2" stroke-linecap="round"/>
-    <!-- whiskers -->
-    <g stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round">
-      <line x1="30" y1="56" x2="14" y2="53"/>
-      <line x1="30" y1="60" x2="14" y2="61"/>
-      <line x1="70" y1="56" x2="86" y2="53"/>
-      <line x1="70" y1="60" x2="86" y2="61"/>
+    <g class="eyes">
+      <circle cx="49" cy="46" r="5" fill="#fff"/><circle cx="71" cy="46" r="5" fill="#fff"/>
+      <circle cx="49" cy="47" r="2.6" fill="#2a1a0a"/><circle cx="71" cy="47" r="2.6" fill="#2a1a0a"/>
     </g>
+    <!-- nose + mouth -->
+    <ellipse cx="60" cy="56" rx="5.5" ry="3.6" fill="#2a1a0a"/>
+    <path d="M60 59 v5 M60 64 q-7 4 -12 1 M60 64 q7 4 12 1" stroke="#5b3a1d" stroke-width="2" fill="none" stroke-linecap="round"/>
   </svg>`;
+}
 
-  // ---- Sounds (synthesized with Web Audio, no files needed) -----------------
-  let audioCtx = null;
-  function getCtx() {
-    if (!audioCtx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) audioCtx = new AC();
+const JOKES = [
+  "Why did the banana go to the doctor? It wasn't peeling well!",
+  "I'm not monkeying around... okay, maybe a little.",
+  "This game is bananas. B-A-N-A-N-A-S!",
+  "I told a tree a joke. It left me stumped.",
+  "Aces high, monkeys higher!",
+  "Red on black? Now you're swinging!",
+  "Do these vines make me look long-armed?",
+  "I'd tell you a card joke, but I'd probably deal it wrong.",
+  "Stack 'em like bananas, friend!",
+  "Ook ook means 'nice move' in monkey.",
+  "Lost the game? Just go ape and try again.",
+  "The sun's out, the cards are hot!",
+  "I clap for good moves and bad puns equally.",
+  "Kings go on empty stumps. I mean columns.",
+  "Why don't monkeys play cards in the jungle? Too many cheetahs!",
+  "Shuffle? I prefer to call it a jungle boogie.",
+  "Three-card draw: my favorite kind of treetop drama.",
+  "You've got this. Probably. Mostly. Go bananas!",
+  // jokes about the swamp neighbors
+  "That crocodile's got a SNAPPY sense of humor.",
+  "The owl keeps asking who's winning. WHOOO indeed!",
+  "Don't lily-pad around, froggy — make your move!",
+  "The hippo's poker face is enormous. Literally.",
+  "Croc says he never folds. Too many tells in those teeth!",
+  "I asked the swamp for a hint. It just gurgled at me.",
+  "Owl be honest, you're playing great tonight.",
+  "The frog only makes ribbiting moves.",
+  "Careful — the hippo called dibs on the river AND the reds.",
+  "That crocodile is all in. Always. Every single hand.",
+  // monkeys teasing the swamp neighbours
+  "That croc smiles a lot for someone with breath like swamp gas.",
+  "Hippo, the river called — it wants its space back.",
+  "The owl thinks he's so wise, but he can't even shuffle.",
+  "Nice lily pad, frog. Did the swamp's worst decorator do it?",
+  "Croc's got 80 teeth and exactly zero card sense.",
+  "Hippo, sweating in the water? Bold look.",
+  "The owl stares all night and STILL misses every move.",
+  "That frog's been on the same pad for an hour. Riveting.",
+  "Crocodile: all snap, no strategy.",
+  "Hippo's so wide the river goes around him. Twice.",
+  "Hoot all you want, owl — hooting never beat a King.",
+  "The croc folds laundry better than he folds cards. And he can't fold laundry.",
+  // more teasing of the swamp neighbours
+  "The hippo tried solitaire once. Ate the whole deck.",
+  "Owl asked for a hint. I said: blink less, win more.",
+  "Croc's poker face? He doesn't have one — he has eighty.",
+  "Frog leaps before he looks. Explains his win rate.",
+  "The hippo's idea of a bath IS the entire river.",
+  "Owl's up all night and STILL can't spot a red Queen.",
+  "Fewer teeth, more thinking, croc — give it a try.",
+  "Frog, catching that fly was your best move all day.",
+  "Hippo, the diet starts tomorrow. It always starts tomorrow.",
+  // jabs at the tiger and the eagle
+  "An eagle just buzzed the place. Show-off with wings.",
+  "The tiger strolled up, sat by the river, and left. Big mood.",
+  "Stripes AND attitude on that tiger — still can't play a red ten.",
+  "The eagle sees everything from up there and STILL won't hint.",
+  "Here kitty kitty— nope, that's a TIGER. As you were.",
+  "The eagle does one lap and calls it a workout.",
+  "Tiger came all this way to stare at water. Deeply relatable.",
+  "Don't mind the tiger, he's only here for the scenery. Probably.",
+  "That eagle's got the best seat in the house — uses it to look smug.",
+  "The tiger sat down to plan his draw-three strategy. Good luck, stripes.",
+  // jabs at the snake hanging in the tree
+  "That snake's got no hands and STILL judges your card moves. Rude.",
+  "The snake says this game is sssspectacular.",
+  "Careful — the snake's advice is always a little forked.",
+  "The snake's been hanging around the tree all day. Literally.",
+  "Sssneaky move! The snake approves of that one.",
+  "The snake tried to deal, but kept dropping the cards. No hands, see.",
+  "That snake is all tongue and no strategy.",
+  "The snake hisses at every bad move. He's hissed a lot today.",
+  "Don't let the snake rattle you — wrong reptile, but you get it.",
+  "The snake says draw-three is his favorite. Less to hold.",
+  // jabs at the parrot, bat, wolf and fish
+  "The parrot repeats every move I call. Polly wanna strategy?",
+  "That parrot's got more colors than the whole deck and less sense.",
+  "Parrot says 'nice move' to everyone — even the bad ones.",
+  "A bat flew by upside down. Bold way to read the cards.",
+  "The bat plays by echolocation and STILL can't find a red Queen.",
+  "Night flyer's here — the bat thinks every black card's a buddy.",
+  "The wolf howls at the moon AND at every bad shuffle.",
+  "Lone wolf? More like lone last-place. No offense, buddy.",
+  "The wolf came to howl, not to help. Typical.",
+  "A fish jumped out just to judge that move. Splash of shade.",
+  "That fish has gills and STILL can't hold a hand of cards.",
+  "The fish flops more than your losing streak. Kidding! Mostly.",
+  // jabs at the turtle, possum, spider and the sleepy night crew
+  "The turtle's playing the long game. The VERY long game.",
+  "Slow and steady, says the turtle. Still finished last, though.",
+  "The turtle carries his own table around and STILL won't deal.",
+  "The possum plays dead every time he's about to lose. Smart, actually.",
+  "That possum hangs upside down — explains how he reads the cards.",
+  "Possum's asleep... or is he? With that one you never know.",
+  "The spider spun a whole web and STILL can't catch a break.",
+  "Eight legs, zero card sense — that's our spider.",
+  "The spider says your moves are all tangled up. Rude.",
+  "The croc's snoring again — zzz-actly no help at all.",
+  "The hippo vanished underwater for the night. Bold exit strategy.",
+  // more parrot and fish jabs
+  "The parrot whistled at my winning move. Finally, good taste.",
+  "Polly wants a cracker AND a red seven.",
+  "The parrot repeats my jokes and gets more laughs. Rude.",
+  "That parrot's got a beak for gossip and none for cards.",
+  "Squawk all you like, parrot — that King still isn't moving.",
+  "The fish jumped up, judged the board, then belly-flopped back. Critic.",
+  "Something's fishy about that last move... oh wait, it's just the fish.",
+  "The fish surfaced for air and to heckle. Mostly to heckle.",
+  "That fish has scales but can't weigh up a good move.",
+  "The fish keeps jumping the queue. And the river.",
+  // jabs at the snowy-night crew
+  "The polar bear says it's a bit nippy for solitaire. Toughen up!",
+  "Polar bear's got a great poker face. And a great everything-else face.",
+  "The walrus has two tusks and STILL can't cut the deck.",
+  "The penguin's in a permanent tuxedo and still underdressed for losing.",
+  "Penguins can't fly, and apparently can't shuffle either.",
+  "The seal clapped for that move. Or it's just cold — hard to tell.",
+  "Seal of approval! Literally, the seal approves.",
+  "The snowy owl asked whooo's winning. Chilliest question all night.",
+  "Great antlers, moose. Shame you can't hold a single card with them.",
+  "That moose has stood there all night. Bold strategy.",
+  // the bears joking about themselves
+  "We're bears now, apparently. Still can't bear to lose.",
+  "Un-bear-ably good shuffle there, friend!",
+  "Two bears, one game — we're barely keeping it together.",
+  "I'd give that move a great big bear hug.",
+  "Grizzly business, this solitaire.",
+  "I could go for a nap, a salmon, and a win. In any order.",
+  "Paws for applause — nice play!",
+  // a few more about everyone
+  "The owl, the croc, the frog — everyone's a critic tonight.",
+  "The parrot rated that move 'squawk out of ten.'",
+  "Even the turtle poked his head out to watch that one.",
+  "The moose says draw-three is a-moose-ing.",
+  "The penguin gave that a formal, tuxedoed nod.",
+  "The walrus clapped. Slowly. Very slowly.",
+  "The spider says your web of moves is all tangled.",
+  "The fish leapt up, unimpressed, and flopped right back."
+];
+
+// shown when the player makes a strong move (card home, a reveal, or a big move)
+const ENCOURAGE = [
+  "Now THAT was a clever move — nicely done!",
+  "Look at you go — those foundations are filling up!",
+  "Smooth play! Even the owl looked impressed.",
+  "You're on fire — keep stacking, champ!",
+  "Great eye! That was exactly the move.",
+  "Almost there — the whole jungle's rooting for you!",
+  "Ooh, slick! You make this look easy.",
+  "Nice one! The monkeys approve!",
+  "Boom! Straight home. Love it.",
+  "Yes! That's how the pros do it.",
+  "Sharp — you spotted that one early!",
+  "Keep it up, victory's in sight!"
+];
+
+const monkeys = [];
+function buildScene(){
+  document.getElementById('stumpL').innerHTML = STUMP_SVG +
+    `<div class="monkey" id="monkeyL">${monkeySVG()}</div>` +
+    `<div class="sign" id="signL"><div class="board"></div><div class="post"></div></div>`;
+  document.getElementById('stumpR').innerHTML = STUMP_SVG +
+    `<div class="monkey" id="monkeyR">${monkeySVG()}</div>` +
+    `<div class="sign" id="signR"><div class="board"></div><div class="post"></div></div>`;
+  monkeys.push({m:document.getElementById('monkeyL'), s:document.getElementById('signL')});
+  monkeys.push({m:document.getElementById('monkeyR'), s:document.getElementById('signR')});
+  monkeys.forEach((mk,idx)=> scheduleMonkey(mk, 4000 + idx*3000 + Math.random()*3000));
+  buildGreenery();
+}
+
+/* scatter little rocks and grass tufts at random across the greenery */
+function buildGreenery(){
+  const host = document.getElementById('greenery');
+  if(!host) return;
+  const rockSVG = (s)=>`<svg width="${44*s}" height="${30*s}" viewBox="0 0 44 30" overflow="visible">
+      <ellipse class="rk1" cx="22" cy="20" rx="16" ry="9" fill="#7e8489"/>
+      <ellipse class="rk2" cx="13" cy="24" rx="8" ry="5" fill="#686e74"/>
+      <path class="rk3" d="M11 15 q11 -6 20 0" stroke="none" fill="none"/>
+      <path d="M11 15 q11 -6 20 0" stroke="#9aa0a5" stroke-width="2" fill="none"/>
+    </svg>`;
+  const grassSVG = (s)=>`<svg width="${34*s}" height="${26*s}" viewBox="0 0 34 26" overflow="visible">
+      <path class="gt" d="M6 26 q-3 -12 -7 -17 M10 26 q0 -14 3 -19 M17 26 q1 -15 5 -18 M23 26 q3 -12 8 -16 M28 26 q4 -10 6 -13"
+        stroke="#2f8a3a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  let html='';
+  // a cluster of rocks
+  const rockN = 7 + (Math.random()*4|0);
+  for(let k=0;k<rockN;k++){
+    const s = 0.4 + Math.random()*0.7;
+    const left = 4 + Math.random()*92;               // vw across
+    const bottom = 2 + Math.random()*46;             // % up the greenery
+    html += `<div class="scatter" style="left:${left.toFixed(1)}%;bottom:${bottom.toFixed(1)}%;transform:scale(${(0.85+Math.random()*0.5).toFixed(2)});opacity:${(0.82+Math.random()*0.18).toFixed(2)}">${rockSVG(s)}</div>`;
+  }
+  // grass tufts sprinkled around
+  const grassN = 14 + (Math.random()*8|0);
+  for(let k=0;k<grassN;k++){
+    const s = 0.6 + Math.random()*0.8;
+    const left = 2 + Math.random()*96;
+    const bottom = 1 + Math.random()*48;
+    html += `<div class="scatter" style="left:${left.toFixed(1)}%;bottom:${bottom.toFixed(1)}%;transform:scaleX(${Math.random()<.5?-1:1});opacity:${(0.8+Math.random()*0.2).toFixed(2)}">${grassSVG(s)}</div>`;
+  }
+  host.innerHTML = html;
+}
+function setMonkeyCheer(on){ monkeys.forEach(mk=> mk.m.classList.toggle('cheer', on)); }
+
+// raise a monkey's sign with the given text
+function showSign(mk, text){
+  mk.s.querySelector('.board').textContent = text;
+  mk.s.classList.add('show'); mk.m.classList.add('bob');
+  if(audioUnlocked) sndMonkey();
+  setTimeout(()=>mk.m.classList.remove('bob'), 600);
+  clearTimeout(mk._hide);
+  mk._hide = setTimeout(()=>mk.s.classList.remove('show'), 7200);
+}
+
+// pop an encouragement sign when the player is doing well (throttled so it stays special)
+let lastEncourage = 0;
+function encourage(){
+  if(busy || !monkeys.length) return;
+  const now = Date.now();
+  if(now - lastEncourage < 14000) return;   // cooldown
+  if(Math.random() > 0.45) return;          // only some of the time
+  lastEncourage = now;
+  const mk = monkeys[(Math.random()*monkeys.length)|0];
+  showSign(mk, ENCOURAGE[(Math.random()*ENCOURAGE.length)|0]);
+}
+
+function scheduleMonkey(mk, delay){
+  setTimeout(function tick(){
+    if(document.hidden){ scheduleMonkey(mk, 6000); return; }
+    // Mostly just look around; tell a joke only ~1 in 5 times.
+    // Combined with the wider interval this makes jokes ~3x less frequent.
+    if(Math.random() < 0.78){ // look around
+      const cls = Math.random()<0.5?'look':'look2';
+      mk.m.classList.add(cls); mk.m.classList.add('bob');
+      if(audioUnlocked && Math.random()<0.5) sndMonkey();
+      setTimeout(()=>{ mk.m.classList.remove('look','look2','bob'); }, 900);
+    } else { // tell a joke
+      showSign(mk, JOKES[(Math.random()*JOKES.length)|0]);
     }
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-  }
+    scheduleMonkey(mk, 8000 + Math.random()*8000);
+  }, delay);
+}
 
-  // A deep, extended "wooooof": low pitch-dropping bark with a bit of noise.
-  function woof(at = 0) {
-    const ctx = getCtx();
-    if (!ctx) return;
-    const t = ctx.currentTime + at;
-    const dur = 0.6;
+/* ============================================================
+   10. Audio (Web Audio, synthesized; iOS gesture-unlocked)
+   ============================================================ */
+let actx=null, master=null, muted=false, audioUnlocked=false;
+function getCtx(){
+  if(!actx){ actx = new (window.AudioContext||window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = 0.6; master.connect(actx.destination); }
+  if(actx.state==='suspended') actx.resume();
+  return actx;
+}
+function unlockAudio(){
+  if(audioUnlocked) return;
+  const c=getCtx();
+  const b=c.createBuffer(1,1,22050); const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(0);
+  audioUnlocked=true;
+}
+function tone(freq, dur, type='sine', vol=0.3, glideTo=null){
+  if(muted) return; const c=getCtx(); const o=c.createOscillator(); const g=c.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq, c.currentTime);
+  if(glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, c.currentTime+dur);
+  g.gain.setValueAtTime(vol, c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0008, c.currentTime+dur);
+  o.connect(g); g.connect(master); o.start(); o.stop(c.currentTime+dur+0.02);
+}
+function noise(dur, vol=0.25, freq=1200, type='bandpass'){
+  if(muted) return; const c=getCtx(); const n=Math.floor(c.sampleRate*dur);
+  const buf=c.createBuffer(1,n,c.sampleRate); const d=buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+  const src=c.createBufferSource(); src.buffer=buf;
+  const f=c.createBiquadFilter(); f.type=type; f.frequency.value=freq;
+  const g=c.createGain(); g.gain.setValueAtTime(vol, c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0008, c.currentTime+dur);
+  src.connect(f); f.connect(g); g.connect(master); src.start(); src.stop(c.currentTime+dur+0.02);
+}
+function sndPlace(){ noise(0.07,0.22,1500); }
+function sndFlipless(){ noise(0.05,0.12,2200); }
+function sndDraw(){ [0,60,120].forEach(ms=>setTimeout(()=>noise(0.06,0.18,1300),ms)); }
+function sndDeal(){ for(let k=0;k<7;k++) setTimeout(()=>noise(0.05,0.14,1200+k*60), k*55); }
+function sndFoundation(){ tone(520,0.18,'sine',0.3,880); }
+function sndWin(){ const ns=[523,659,784,1047,1319]; ns.forEach((f,i)=>setTimeout(()=>tone(f,0.3,'triangle',0.32),i*120)); }
+function sndCheer(){ for(let k=0;k<14;k++) setTimeout(()=>noise(0.05,0.12,2000+Math.random()*1500,'highpass'), k*70);
+  setTimeout(()=>{ tone(700,0.3,'sawtooth',0.12,500); tone(900,0.3,'sawtooth',0.1,650); },200); }
+function sndMonkey(){ if(muted) return; const base=420+Math.random()*120;
+  tone(base,0.12,'triangle',0.18, base*1.6); setTimeout(()=>tone(base*0.8,0.12,'triangle',0.16, base*1.3),150); }
+function sndNo(){ tone(180,0.14,'square',0.16,120); }
+function sndEagle(){ if(muted) return; tone(1500,0.16,'sawtooth',0.10,950); setTimeout(()=>tone(1150,0.16,'sawtooth',0.09,780),130); setTimeout(()=>tone(1320,0.12,'sawtooth',0.08,900),300); }
+function sndTiger(){ if(muted) return; tone(150,0.45,'sawtooth',0.16,80); noise(0.45,0.09,260,'lowpass'); }
+function sndSplash(){ if(muted) return; noise(0.16,0.12,900,'lowpass'); setTimeout(()=>noise(0.13,0.08,1500,'highpass'),110); }
+function sndSnake(){ if(muted) return; noise(0.5,0.07,3000,'highpass'); }
+function sndOwl(){ if(muted) return; tone(420,0.18,'sine',0.14,360); setTimeout(()=>tone(380,0.22,'sine',0.13,320),260); }
+function sndBat(){ if(muted) return; tone(2600,0.05,'square',0.05,3200); setTimeout(()=>tone(2400,0.05,'square',0.05,3000),70); }
+function sndWolf(){ if(muted) return; tone(300,0.55,'sine',0.16,520); setTimeout(()=>tone(540,0.7,'sine',0.16,300),320); }
+function sndWhistle(){ if(muted) return; tone(1800,0.12,'sine',0.10,2500); setTimeout(()=>tone(2300,0.14,'sine',0.09,1600),120); }
+function sndBear(){ if(muted) return; tone(150,0.5,'sawtooth',0.18,90); noise(0.5,0.12,220,'lowpass'); }
+function sndPop(){ if(muted) return; noise(0.05,0.16,1400,'bandpass'); tone(520+Math.random()*280,0.22,'triangle',0.10,110); }
+function sndMoose(){ if(muted) return; tone(180,0.6,'sawtooth',0.16,140); setTimeout(()=>tone(150,0.5,'sawtooth',0.14,110),360); }
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    // deeper: starts low, dips, with a long "oooo" tail
-    osc.frequency.setValueAtTime(160, t);
-    osc.frequency.exponentialRampToValueAtTime(70, t + 0.10);
-    osc.frequency.exponentialRampToValueAtTime(48, t + dur);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.55, t + 0.03);
-    gain.gain.setValueAtTime(0.55, t + 0.30);          // hold the "ooooo"
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+/* ============================================================
+   11. Bootstrap
+   ============================================================ */
+function init(){
+  sizeCards();
+  buildScene();
+  newGame();
 
-    // sub-oscillator an octave down for extra depth
-    const sub = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(80, t);
-    sub.frequency.exponentialRampToValueAtTime(36, t + dur);
-    subGain.gain.setValueAtTime(0.0001, t);
-    subGain.gain.exponentialRampToValueAtTime(0.4, t + 0.04);
-    subGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-    osc.connect(gain).connect(ctx.destination);
-    sub.connect(subGain).connect(ctx.destination);
-    osc.start(t); sub.start(t);
-    osc.stop(t + dur + 0.05); sub.stop(t + dur + 0.05);
-
-    // short noise burst at the attack for the "w" of the woof
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.14, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-    const noise = ctx.createBufferSource();
-    const nGain = ctx.createGain();
-    const nFilter = ctx.createBiquadFilter();
-    nFilter.type = 'lowpass';
-    nFilter.frequency.value = 500;
-    noise.buffer = buf;
-    nGain.gain.setValueAtTime(0.3, t);
-    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-    noise.connect(nFilter).connect(nGain).connect(ctx.destination);
-    noise.start(t);
-  }
-
-  // A high-pitched, extended "meeeooowww": rising-then-falling whiny tone with vibrato.
-  function meow(at = 0) {
-    const ctx = getCtx();
-    if (!ctx) return;
-    const t = ctx.currentTime + at;
-    const dur = 0.75;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    // higher pitch and a longer glide: "mee-eee-ooo-www"
-    osc.frequency.setValueAtTime(720, t);
-    osc.frequency.linearRampToValueAtTime(1050, t + 0.18);
-    osc.frequency.setValueAtTime(1050, t + 0.40);   // hold the high "eeee"
-    osc.frequency.linearRampToValueAtTime(620, t + dur);
-
-    // vibrato for the whiny character
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 16;
-    lfoGain.gain.value = 45;
-    lfo.connect(lfoGain).connect(osc.frequency);
-
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.06);
-    gain.gain.setValueAtTime(0.4, t + 0.55);        // hold before the fade
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t);
-    lfo.start(t);
-    osc.stop(t + dur + 0.05);
-    lfo.stop(t + dur + 0.05);
-  }
-
-  function playSound(player) {
-    if (player === 'dog') woof(); else meow();
-  }
-
-  function celebrate(player) {
-    const fn = player === 'dog' ? woof : meow;
-    const gap = player === 'dog' ? 0.55 : 0.7; // spacing for the longer sounds
-    fn(0); fn(gap); fn(gap * 2); // three barks / meows
-  }
-
-  // ---- Game state -----------------------------------------------------------
-  const PLAYERS = { dog: dogSVG, cat: catSVG };
-  const HUMAN = 'dog';      // you are the Labrador
-  const COMPUTER = 'cat';   // the computer is the cat
-  const WINS = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-
-  let cells = Array(9).fill(null);
-  let current = 'dog';
-  let over = false;
-  let busy = false;         // blocks input while the computer is thinking
-  const scores = { dog: 0, cat: 0, draw: 0 };
-
-  const boardEl = document.getElementById('board');
-  const statusEl = document.getElementById('status');
-
-  document.getElementById('dogIcon').innerHTML = dogSVG;
-  document.getElementById('catIcon').innerHTML = catSVG;
-
-  function nameOf(p) { return p === 'dog' ? "Labrador" : "Cat"; }
-  function setStatus(html) { statusEl.innerHTML = html; }
-
-  function turnStatus() {
-    const who = current === HUMAN ? "Your turn" : "Computer is thinking…";
-    setStatus(`${PLAYERS[current]} <span>${who}</span>`);
-  }
-
-  function buildBoard() {
-    boardEl.innerHTML = '';
-    cells.forEach((_, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'cell';
-      btn.dataset.index = i;
-      btn.addEventListener('click', () => onHumanClick(i));
-      boardEl.appendChild(btn);
-    });
-  }
-
-  function onHumanClick(i) {
-    if (over || busy || current !== HUMAN || cells[i]) return;
-    place(i);
-  }
-
-  // Place the current player's mark, play its sound, and advance the game.
-  function place(i) {
-    cells[i] = current;
-    const cell = boardEl.children[i];
-    cell.innerHTML = PLAYERS[current];
-    cell.classList.add('filled');
-    playSound(current);
-
-    const winLine = getWin(current);
-    if (winLine) {
-      over = true;
-      winLine.forEach(idx => boardEl.children[idx].classList.add('win'));
-      scores[current]++;
-      updateScores();
-      setStatus(`${PLAYERS[current]} <span>${nameOf(current)} wins! 🎉</span>`);
-      celebrate(current);
-      return;
-    }
-
-    if (cells.every(Boolean)) {
-      over = true;
-      scores.draw++;
-      updateScores();
-      setStatus(`<span>It's a draw! 🤝</span>`);
-      return;
-    }
-
-    current = current === 'dog' ? 'cat' : 'dog';
-    turnStatus();
-    maybeComputerMove();
-  }
-
-  function maybeComputerMove() {
-    if (over || current !== COMPUTER) return;
-    busy = true;
-    setTimeout(() => {
-      place(chooseComputerMove());
-      busy = false;
-    }, 550);
-  }
-
-  // Easy computer: plays a random move 90% of the time (mistakes),
-  // and only plays the smart move the other 10%.
-  function chooseComputerMove() {
-    const empty = cells.map((c, i) => c ? null : i).filter(i => i !== null);
-
-    if (Math.random() < 0.9) {
-      return empty[Math.floor(Math.random() * empty.length)];
-    }
-
-    const findWinning = p => {
-      for (const i of empty) {
-        cells[i] = p;
-        const won = getWin(p);
-        cells[i] = null;
-        if (won) return i;
-      }
-      return null;
-    };
-
-    let move = findWinning(COMPUTER);          // win if possible
-    if (move === null) move = findWinning(HUMAN); // else block
-    if (move === null && cells[4] === null) move = 4; // center
-    if (move === null) {
-      const corners = [0, 2, 6, 8].filter(i => cells[i] === null);
-      if (corners.length) move = corners[Math.floor(Math.random() * corners.length)];
-    }
-    if (move === null) move = empty[Math.floor(Math.random() * empty.length)];
-    return move;
-  }
-
-  function getWin(p) {
-    return WINS.find(line => line.every(idx => cells[idx] === p)) || null;
-  }
-
-  function updateScores() {
-    document.getElementById('dogScore').textContent = scores.dog;
-    document.getElementById('catScore').textContent = scores.cat;
-    document.getElementById('drawScore').textContent = scores.draw;
-  }
-
-  function newRound() {
-    cells = Array(9).fill(null);
-    over = false;
-    busy = false;
-    current = Math.random() < 0.5 ? HUMAN : COMPUTER; // random who starts
-    buildBoard();
-    turnStatus();
-    maybeComputerMove();
-  }
-
-  document.getElementById('restart').addEventListener('click', () => { getCtx(); newRound(); });
-  document.getElementById('resetScores').addEventListener('click', () => {
-    scores.dog = scores.cat = scores.draw = 0;
-    updateScores();
-    newRound();
+  document.getElementById('table').addEventListener('click', onTap);
+  document.getElementById('newBtn').addEventListener('click', ()=>newGame());
+  document.getElementById('winNew').addEventListener('click', ()=>newGame());
+  document.getElementById('finishBtn').addEventListener('click', autoFinish);
+  document.getElementById('muteBtn').addEventListener('click', (e)=>{
+    muted=!muted; e.target.textContent = muted?'🔇':'🔊';
   });
 
-  // ---- Start ----------------------------------------------------------------
-  newRound();
+  // iOS audio unlock on first touch/click
+  const unlock=()=>{ unlockAudio(); };
+  document.addEventListener('pointerdown', unlock, {once:true});
+  document.addEventListener('touchend', unlock, {once:true});
+  document.addEventListener('click', unlock, {once:true});
+
+  window.addEventListener('resize', ()=>{ sizeCards(); render(); });
+  window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ sizeCards(); render(); }, 250); });
+
+  // crocodile opens its mouth only every 2-3 minutes, otherwise just watches
+  function crocChomp(){ if(isNight) return; const c=document.getElementById('croc'); if(!c) return;
+    c.classList.remove('chomping'); void c.offsetWidth; c.classList.add('chomping');
+    setTimeout(()=>c.classList.remove('chomping'), 2800); }
+  function scheduleCroc(){ setTimeout(()=>{ if(!document.hidden) crocChomp(); scheduleCroc(); }, 120000 + Math.random()*60000); }
+  setTimeout(crocChomp, 10000); // one early yawn so you can confirm it works
+  scheduleCroc();
+
+  // ---- day / night state: swaps the cast to match the sky (aligned to the 840s cycle) ----
+  const DN0 = Date.now(); let isNight = false, weather = 'day';
+  function applyPhase(n){ if(n===isNight) return; isNight=n; document.body.classList.toggle('night', n);
+    if(audioUnlocked){ if(n) sndOwl(); } }
+  // populate falling snow + rain
+  (function buildWeather(){
+    const snow=document.getElementById('snow'), rain=document.getElementById('rain');
+    if(snow) for(let i=0;i<46;i++){ const f=document.createElement('i'); const s=(3+Math.random()*5).toFixed(1);
+      f.style.left=(Math.random()*100).toFixed(1)+'%'; f.style.width=f.style.height=s+'px';
+      f.style.opacity=(0.5+Math.random()*0.5).toFixed(2);
+      f.style.animationDuration=(6+Math.random()*7).toFixed(1)+'s';
+      f.style.animationDelay=(-Math.random()*13).toFixed(1)+'s'; snow.appendChild(f); }
+    if(rain) for(let i=0;i<64;i++){ const d=document.createElement('i');
+      d.style.left=(Math.random()*100).toFixed(1)+'%'; d.style.height=(12+Math.random()*14).toFixed(0)+'px';
+      d.style.animationDuration=(0.5+Math.random()*0.45).toFixed(2)+'s';
+      d.style.animationDelay=(-Math.random()).toFixed(2)+'s'; rain.appendChild(d); }
+  })();
+  // day+night runs on an 840s loop; the night's weather rotates clear -> snow -> rain every 3rd cycle
+  function checkPhase(){
+    const elapsed=(Date.now()-DN0)/1000, p=elapsed%840;
+    const night=(p>=440 && p<762);
+    applyPhase(night);
+    const cycle=Math.floor(elapsed/840)%3;   // 0 clear, 1 snow, 2 rain
+    const snowing=night&&cycle===1, raining=night&&cycle===2;
+    document.body.classList.toggle('snowing', snowing);
+    document.body.classList.toggle('raining', raining);
+    weather = !night ? 'day' : (snowing?'snow':raining?'rain':'clear');
+  }
+  setInterval(checkPhase, 4000); checkPhase();
+
+  // flyer: eagle by day, bat by night — crosses the sky every 3 minutes
+  function flyerGo(){ const id = !isNight ? 'eagle' : (weather==='snow' ? 'snowowl' : 'bat');
+    const e=document.getElementById(id); if(!e) return;
+    e.classList.remove('fly'); void e.offsetWidth; e.classList.add('fly');
+    if(audioUnlocked){ id==='bat'?sndBat():id==='snowowl'?sndOwl():sndEagle(); }
+    setTimeout(()=>e.classList.remove('fly'), 7200); }
+  function scheduleFlyer(){ setTimeout(()=>{ if(!document.hidden) flyerGo(); scheduleFlyer(); }, 180000); }
+  setTimeout(flyerGo, 12000); scheduleFlyer();
+
+  // visitor: tiger by day, howling wolf by night — comes to the river, sits, then leaves
+  function visitorGo(){ let id='tiger'; if(isNight) id = (weather==='snow') ? 'moose' : 'wolf';
+    const t=document.getElementById(id); if(!t) return;
+    t.classList.remove('visiting','leaving'); void t.offsetWidth; t.classList.add('visiting');
+    setTimeout(()=>{ if(audioUnlocked){ id==='wolf'?sndWolf():id==='moose'?sndMoose():sndTiger(); } }, 2800);
+    setTimeout(()=>t.classList.add('leaving'), 12700);
+    setTimeout(()=>t.classList.remove('visiting','leaving'), 16200); }
+  function scheduleVisitor(){ setTimeout(()=>{ if(!document.hidden) visitorGo(); scheduleVisitor(); }, 120000 + Math.random()*60000); }
+  setTimeout(visitorGo, 20000); scheduleVisitor();
+
+  // a fish jumps out of the river and dives back in, now and then
+  function fishJump(){ const f=document.getElementById('fish'); if(!f) return;
+    f.classList.remove('jump'); void f.offsetWidth; f.classList.add('jump');
+    if(audioUnlocked) sndSplash();
+    setTimeout(()=>f.classList.remove('jump'), 1700); }
+  function scheduleFish(){ setTimeout(()=>{ if(!document.hidden) fishJump(); scheduleFish(); }, 16000 + Math.random()*20000); }
+  setTimeout(fishJump, 8000); scheduleFish();
+
+  // the snake flicks its tongue and hisses at random
+  function snakeHiss(){ if(isNight) return; const s=document.getElementById('snake'); if(!s) return;
+    s.classList.remove('flick'); s.getBoundingClientRect(); s.classList.add('flick');
+    if(audioUnlocked) sndSnake();
+    setTimeout(()=>s.classList.remove('flick'), 650); }
+  function scheduleSnake(){ setTimeout(()=>{ if(!document.hidden) snakeHiss(); scheduleSnake(); }, 8000 + Math.random()*14000); }
+  setTimeout(snakeHiss, 7000); scheduleSnake();
+
+  // daytime parrot whistles + looks around; daytime turtle extends its neck + looks around
+  function pulse(el,cls,dur){ if(!el) return; el.classList.remove(cls); el.getBoundingClientRect(); el.classList.add(cls); setTimeout(()=>el.classList.remove(cls), dur); }
+  function parrotAct(){ if(isNight) return; const p=document.getElementById('parrot'); if(!p) return;
+    if(Math.random()<0.5){ pulse(p,'whistle',600); if(audioUnlocked) sndWhistle(); } else pulse(p,'look',1300); }
+  function scheduleParrot(){ setTimeout(()=>{ if(!document.hidden) parrotAct(); scheduleParrot(); }, 5000 + Math.random()*7000); }
+  scheduleParrot();
+  function turtleAct(){ if(isNight) return; const t=document.getElementById('turtle'); if(!t) return;
+    if(Math.random()<0.5) pulse(t,'extend',1750); else pulse(t,'look',1300); }
+  function scheduleTurtle(){ setTimeout(()=>{ if(!document.hidden) turtleAct(); scheduleTurtle(); }, 6000 + Math.random()*8000); }
+  scheduleTurtle();
+
+
+  // dev helper: force weather to preview it, e.g. __wx('snow'), __wx('rain'), __wx('clear')
+  window.__wx = (w)=>{ const b=document.body.classList;
+    b.toggle('night', w!=='day'); b.toggle('snowing', w==='snow'); b.toggle('raining', w==='rain'); };
+
+  // dev helper: win-rate sampling (run __test(200) in console)
+  window.__test = (n=200)=>{
+    let win=0, t0=performance.now();
+    for(let i=0;i<n;i++){ if(isSolvable(freshDeck())) win++; }
+    console.log(`solvable-within-budget: ${win}/${n} = ${(100*win/n).toFixed(1)}%  in ${(performance.now()-t0).toFixed(0)}ms`);
+  };
+}
+window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
