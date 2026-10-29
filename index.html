@@ -43,14 +43,14 @@
     width:96px; height:96px; border-radius:50%;
     background: radial-gradient(circle at 50% 50%, #fff6c0 0%, #ffe26b 45%, #ffcf3f 70%, rgba(255,207,63,0) 72%);
     filter: blur(1px);
-    animation: suncycle 840s linear infinite;
+    animation: suncycle 420s linear infinite;
   }
   #moon{
     position:fixed; z-index:2; top:0; left:0;
     width:80px; height:80px; border-radius:50%;
     background: radial-gradient(circle at 38% 38%, #ffffff 0%, #eef2ff 46%, #cad4f0 68%, rgba(202,212,240,0) 72%);
     filter: blur(.4px);
-    animation: mooncycle 840s linear infinite;
+    animation: mooncycle 420s linear infinite;
   }
   /* sun crosses in the day half, then hides; moon crosses the night half on the same path/speed */
   @keyframes suncycle{
@@ -68,10 +68,10 @@
     100%   { transform: translate(84vw,4vh);  opacity:0; }
   }
   /* night darkens the sky behind everything */
-  #night{ position:fixed; inset:0; z-index:0; background: linear-gradient(#0a1026, #16203f); opacity:0; animation: nightcycle 840s linear infinite; }
+  #night{ position:fixed; inset:0; z-index:0; background: linear-gradient(#0a1026, #16203f); opacity:0; animation: nightcycle 420s linear infinite; }
   @keyframes nightcycle{ 0%,41%{opacity:0;} 50%,91%{opacity:.9;} 99%,100%{opacity:0;} }
   /* stars replace the clouds at night and twinkle at different times */
-  #stars{ position:fixed; top:0; left:0; right:0; height:36%; z-index:1; opacity:0; pointer-events:none; animation: starcycle 840s linear infinite; }
+  #stars{ position:fixed; top:0; left:0; right:0; height:36%; z-index:1; opacity:0; pointer-events:none; animation: starcycle 420s linear infinite; }
   @keyframes starcycle{ 0%,44%{opacity:0;} 53%,90%{opacity:1;} 98%,100%{opacity:0;} }
   #stars i{ position:absolute; width:3px; height:3px; border-radius:50%; background:#fff; box-shadow:0 0 5px #fff; animation: twinkle 3s ease-in-out infinite; }
   @keyframes twinkle{ 0%,100%{opacity:.2; transform:scale(.6);} 50%{opacity:1; transform:scale(1.15);} }
@@ -94,8 +94,8 @@
   .cloud:before, .cloud:after{ content:""; position:absolute; background:#fff; border-radius:50%; }
   .cloud:before{ width:62px; height:62px; top:-28px; left:26px; }
   .cloud:after{ width:48px; height:48px; top:-18px; left:78px; }
-  #cloud1{ top:5%;  animation: drift 78s linear infinite 0s, cloudcycle 840s linear infinite 0s; }
-  #cloud2{ top:11%; transform:scale(.72); animation: drift 112s linear infinite -46s, cloudcycle 840s linear infinite 0s; }
+  #cloud1{ top:5%;  animation: drift 78s linear infinite 0s, cloudcycle 420s linear infinite 0s; }
+  #cloud2{ top:11%; transform:scale(.72); animation: drift 112s linear infinite -46s, cloudcycle 420s linear infinite 0s; }
   @keyframes drift{ from{ left:-210px;} to{ left:112vw;} }
   @keyframes cloudcycle{ 0%,41%{opacity:.92;} 48%,93%{opacity:0;} 99%,100%{opacity:.92;} }
 
@@ -286,8 +286,8 @@
   #snake{ transform-box:fill-box; transform-origin:48% 0%; }
   #possum{ transform-box:fill-box; transform-origin:48% 0%; animation: snakesway 5s ease-in-out infinite; }
   @keyframes snakesway{ 0%{transform:rotate(0)} 25%{transform:rotate(7deg)} 50%{transform:rotate(0)} 75%{transform:rotate(-7deg)} 100%{transform:rotate(0)} }
-  /* web grows from small to big as the moon crosses (same 840s cycle); spider patrols in a circle */
-  .web .webwrap{ transform-box:fill-box; transform-origin:48% 6%; animation: webgrow 840s linear infinite; }
+  /* web grows from small to big as the moon crosses (same 420s cycle); spider patrols in a circle */
+  .web .webwrap{ transform-box:fill-box; transform-origin:48% 6%; animation: webgrow 420s linear infinite; }
   @keyframes webgrow{ 0%,45%{transform:scale(.18)} 90%{transform:scale(1)} 100%{transform:scale(.18)} }
   .web .spider{ transform-box:fill-box; transform-origin:center; animation: spidercircle 6s linear infinite; }
   @keyframes spidercircle{ 0%{transform:translate(9px,0)} 12.5%{transform:translate(6px,6px)} 25%{transform:translate(0,9px)} 37.5%{transform:translate(-6px,6px)} 50%{transform:translate(-9px,0)} 62.5%{transform:translate(-6px,-6px)} 75%{transform:translate(0,-9px)} 87.5%{transform:translate(6px,-6px)} 100%{transform:translate(9px,0)} }
@@ -1877,7 +1877,7 @@ function init(){
   setTimeout(crocChomp, 10000); // one early yawn so you can confirm it works
   scheduleCroc();
 
-  // ---- day / night state: swaps the cast to match the sky (aligned to the 840s cycle) ----
+  // ---- day / night state: swaps the cast to match the sky (aligned to the 420s cycle) ----
   const DN0 = Date.now(); let isNight = false, weather = 'day';
   function applyPhase(n){ if(n===isNight) return; isNight=n; document.body.classList.toggle('night', n);
     if(audioUnlocked){ if(n) sndOwl(); } }
@@ -1894,18 +1894,18 @@ function init(){
       d.style.animationDuration=(0.5+Math.random()*0.45).toFixed(2)+'s';
       d.style.animationDelay=(-Math.random()).toFixed(2)+'s'; rain.appendChild(d); }
   })();
-  // day+night runs on an 840s loop; the night's weather rotates clear -> snow -> rain every 3rd cycle
+  // day+night runs on a 420s loop (7 min); the night's weather rotates clear -> snow -> rain every 3rd cycle
   function checkPhase(){
-    const elapsed=(Date.now()-DN0)/1000, p=elapsed%840;
-    const night=(p>=440 && p<762);
+    const elapsed=(Date.now()-DN0)/1000, p=elapsed%420;
+    const night=(p>=220 && p<381);
     applyPhase(night);
-    const cycle=Math.floor(elapsed/840)%3;   // 0 clear, 1 snow, 2 rain
+    const cycle=Math.floor(elapsed/420)%3;   // 0 clear, 1 snow, 2 rain
     const snowing=night&&cycle===1, raining=night&&cycle===2;
     document.body.classList.toggle('snowing', snowing);
     document.body.classList.toggle('raining', raining);
     weather = !night ? 'day' : (snowing?'snow':raining?'rain':'clear');
   }
-  setInterval(checkPhase, 4000); checkPhase();
+  setInterval(checkPhase, 2000); checkPhase();
 
   // flyer: eagle by day, bat by night — crosses the sky every 3 minutes
   function flyerGo(){ const id = !isNight ? 'eagle' : (weather==='snow' ? 'snowowl' : 'bat');
