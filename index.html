@@ -181,8 +181,12 @@
 
   #table{
     position:relative; width:min(100vw,480px); padding: var(--pad);
-    margin-top:2px;
+    margin-top:2px; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
   }
+  /* cards being slid follow the finger, floating above everything */
+  #dragghost{ position:fixed; left:0; top:0; z-index:9; pointer-events:none;
+    filter: drop-shadow(0 8px 10px rgba(0,0,0,.35)); }
   .row{ display:grid; grid-template-columns: repeat(7, 1fr); gap: var(--gap); }
   #topRow{ margin-bottom: 8px; }
   #topRow .cell{ position:relative; height: var(--card-h); }
@@ -1119,8 +1123,79 @@ function afterMove(){
   if(isWin()) doWin();
 }
 
-/* ---- tap to move ---- */
-function onTap(e){ handleTap(e.target.closest('[data-loc]')); }
+/* ---- press a card and slide it to its destination (a quick tap still works) ---- */
+let drag = null;
+function onPointerDown(e){
+  if(busy || drag || (e.button!==undefined && e.button>0)) return;
+  const el = e.target.closest('[data-loc]');
+  drag = { id:e.pointerId, x0:e.clientX, y0:e.clientY, el, moved:false, src:null, cards:null, ghost:null };
+  if(!el) return;
+  const loc=el.dataset.loc, i=el.dataset.i!==undefined?+el.dataset.i:-1;
+  if(loc==='waste' && state.waste.length){ drag.src={loc,i:0}; drag.cards=[topOf(state.waste)]; }
+  else if(loc[0]==='t'){ const col=+loc.slice(1); const run=movableRun(col,i); if(run){ drag.src={loc,i}; drag.cards=run; } }
+  else if(loc[0]==='f'){ const c=topOf(state.foundations[+loc.slice(1)]); if(c){ drag.src={loc,i:0}; drag.cards=[c]; } }
+}
+function onPointerMove(e){
+  if(!drag || e.pointerId!==drag.id) return;
+  const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0;
+  if(!drag.moved){
+    if(!drag.src || Math.hypot(dx,dy) < 6) return;
+    drag.moved = true; clearSel(); render(); liftCards();
+  }
+  if(e.cancelable) e.preventDefault();
+  drag.dx=dx; drag.dy=dy;
+  drag.ghost.style.transform = `translate(${dx}px,${dy}px)`;
+}
+function onPointerUp(e){
+  if(!drag || e.pointerId!==drag.id) return;
+  const d = drag; drag = null;
+  if(!d.moved){ handleTap(d.el); return; }       // plain tap: select / tap-to-place / double-tap home
+  const r = d.first;                              // where the grabbed card sits now
+  const cx = r.left + r.width/2 + d.dx, cy = r.top + r.height/2 + d.dy;
+  let moved = false;
+  for(const loc of dropTargets(cx, cy, r.width)){
+    if(loc===d.src.loc) continue;
+    if(loc[0]==='f'){ if(d.cards.length===1 && canToFoundation(d.cards[0])){ moveToFoundation(d.cards[0], d.src); moved=true; } }
+    else { const col=+loc.slice(1); if(canStackTab(d.cards[0], col)){ moveStackToTab(d.cards, d.src, col); moved=true; } }
+    if(moved) break;
+  }
+  if(moved){ d.ghost.remove(); afterMove(); return; }
+  // not a legal spot: slide the cards back home
+  const back = Math.hypot(d.dx, d.dy) > 30;
+  if(back) sndNo();
+  d.ghost.style.transition = 'transform .18s ease-out';
+  d.ghost.style.transform = 'translate(0,0)';
+  setTimeout(()=>{ d.ghost.remove(); render(); }, 190);
+}
+// pick up the real cards: clone them at their exact screen spots, hide the originals
+function liftCards(){
+  const nodes = sourceNodes(drag.src);
+  const g = document.createElement('div'); g.id='dragghost';
+  nodes.forEach((n,k)=>{
+    const r = n.getBoundingClientRect(); if(k===0) drag.first=r;
+    const c = n.cloneNode(true);
+    c.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0`;
+    g.appendChild(c); n.style.visibility='hidden';
+  });
+  document.body.appendChild(g); drag.ghost=g;
+}
+function sourceNodes(src){
+  if(src.loc==='waste'){ const w=document.querySelectorAll('#topRow [data-loc="waste"] .card'); return [w[w.length-1]]; }
+  if(src.loc[0]==='f') return [document.querySelector(`#topRow [data-loc="${src.loc}"] .card`)];
+  return [...document.querySelectorAll(`#tableau [data-loc="${src.loc}"][data-i]`)]
+    .filter(n=>+n.dataset.i>=src.i).map(n=>n.querySelector('.card'));
+}
+// forgiving drop zones: over the top row -> the foundations; lower down -> the nearest column(s)
+function dropTargets(x, y, cw){
+  const topR = document.getElementById('topRow').getBoundingClientRect();
+  if(y < topR.bottom + 8){
+    const f0 = document.querySelector('#topRow [data-loc="f0"]').getBoundingClientRect();
+    return x > f0.left - cw*0.5 ? ['f0','f1','f2','f3'] : [];
+  }
+  return [...document.querySelectorAll('#tableau .col')]
+    .map((c,k)=>{ const r=c.getBoundingClientRect(); return {loc:'t'+k, d:Math.abs(r.left+r.width/2-x)}; })
+    .filter(o=>o.d < cw*0.95).sort((a,b)=>a.d-b.d).map(o=>o.loc);
+}
 
 /* ============================================================
    5. Auto-finish (only useful once nothing is face-down)
@@ -1774,7 +1849,10 @@ function init(){
   buildScene();
   newGame();
 
-  document.getElementById('table').addEventListener('click', onTap);
+  document.getElementById('table').addEventListener('pointerdown', onPointerDown);
+  document.addEventListener('pointermove', onPointerMove, {passive:false});
+  document.addEventListener('pointerup', onPointerUp);
+  document.addEventListener('pointercancel', onPointerUp);
   document.getElementById('newBtn').addEventListener('click', ()=>newGame());
   document.getElementById('winNew').addEventListener('click', ()=>newGame());
   document.getElementById('finishBtn').addEventListener('click', autoFinish);
